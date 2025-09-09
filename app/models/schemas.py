@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class CVSchema(BaseModel):
@@ -9,7 +9,7 @@ class CVSchema(BaseModel):
     experience_years: Optional[int] = None
     skills: List[str] = []
     education: List[str] = []
-    work_experience: List[str] = []
+    work_experience: List[Dict[str, Any]] = []
     certifications: List[str] = []
 
 class JDSchema(BaseModel):
@@ -45,7 +45,7 @@ class CVResponse(BaseModel):
     experience_years: Optional[int] = None
     skills: List[str] = []
     education: List[str] = []
-    work_experience: List[str] = []
+    work_experience: List[Dict[str, Any]] = []
     certifications: List[str] = []
     created_at: datetime
 

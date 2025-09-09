@@ -81,3 +81,60 @@ class OpenAIService:
             return json.loads(result)
         except Exception as e:
             raise Exception(f"Error parsing JD with OpenAI: {str(e)}")
+    
+    async def compare_cv_jd(self, cv_data: Dict[str, Any], jd_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Compare CV and JD using OpenAI and return detailed analysis"""
+        prompt = f"""
+        You are an expert HR recruiter. Please analyze and compare the following CV and Job Description.
+        
+        CV Data:
+        {json.dumps(cv_data, indent=2, ensure_ascii=False)}
+        
+        Job Description Data:
+        {json.dumps(jd_data, indent=2, ensure_ascii=False)}
+        
+        Please provide a detailed comparison analysis in JSON format with the following structure:
+        {{
+            "match_score": "Overall matching percentage (0-100)",
+            "summary": "Brief summary of the match quality",
+            "strengths": ["List of candidate's strengths for this position"],
+            "weaknesses": ["List of areas where candidate doesn't meet requirements"],
+            "skill_analysis": {{
+                "matching_skills": ["Skills that match between CV and JD"],
+                "missing_skills": ["Required skills missing from CV"],
+                "additional_skills": ["Extra skills candidate has that aren't required"]
+            }},
+            "experience_analysis": {{
+                "meets_requirement": "true/false",
+                "cv_experience": "Candidate's experience level",
+                "required_experience": "Required experience level",
+                "analysis": "Detailed analysis of experience match"
+            }},
+            "education_analysis": {{
+                "meets_requirement": "true/false", 
+                "cv_education": "Candidate's education background",
+                "required_education": "Required education level",
+                "analysis": "Detailed analysis of education match"
+            }},
+            "recommendations": ["Specific recommendations for the candidate"],
+            "hiring_recommendation": "strong_recommend/recommend/consider/not_recommend",
+            "detailed_feedback": "Comprehensive feedback about the candidate's fit for this role"
+        }}
+        
+        Provide detailed, constructive analysis in Vietnamese where appropriate. Return only valid JSON.
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert HR recruiter with deep experience in CV analysis and job matching. Provide detailed, accurate, and constructive feedback."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+            
+            result = response.choices[0].message.content.strip()
+            return json.loads(result)
+        except Exception as e:
+            raise Exception(f"Error comparing CV and JD with OpenAI: {str(e)}")

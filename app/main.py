@@ -251,6 +251,43 @@ async def compare_cv_jd(request: ComparisonRequest, db: Session = Depends(get_db
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error comparing CV and JD: {str(e)}")
 
+@app.post("/compare/openai")
+async def compare_cv_jd_with_openai(request: ComparisonRequest, db: Session = Depends(get_db)):
+    try:
+        # Get CV and JD from database
+        cv_record = db.query(CV).filter(CV.id == request.cv_id).first()
+        jd_record = db.query(JobDescription).filter(JobDescription.id == request.jd_id).first()
+        
+        if not cv_record:
+            raise HTTPException(status_code=404, detail=f"CV with id {request.cv_id} not found")
+        if not jd_record:
+            raise HTTPException(status_code=404, detail=f"JD with id {request.jd_id} not found")
+        
+        # Compare using OpenAI
+        openai_result = await openai_service.compare_cv_jd(cv_record.raw_data, jd_record.raw_data)
+        
+        # Save comparison history with OpenAI results
+        history_record = ComparisonHistory(
+            cv_id=request.cv_id,
+            jd_id=request.jd_id,
+            match_score=str(openai_result.get('match_score', 0)),
+            comparison_result=openai_result
+        )
+        db.add(history_record)
+        db.commit()
+        
+        return {
+            "comparison_type": "openai",
+            "cv_id": request.cv_id,
+            "jd_id": request.jd_id,
+            "result": openai_result
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error comparing CV and JD with OpenAI: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
