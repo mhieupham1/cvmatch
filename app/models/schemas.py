@@ -74,3 +74,23 @@ class ComparisonHistoryResponse(BaseModel):
     match_score: float
     comparison_result: dict
     created_at: datetime
+
+class EmbeddingComparisonRequest(BaseModel):
+    cv_id: int
+    similarity_threshold: Optional[float] = 0.7
+    top_k: Optional[int] = 10
+
+class EmbeddingComparisonResult(BaseModel):
+    cv_id: int
+    matched_jds: List[Dict[str, Any]] = []
+    total_matches: int = 0
+
+class JDEmbeddingComparisonRequest(BaseModel):
+    jd_id: int
+    similarity_threshold: Optional[float] = 0.7
+    top_k: Optional[int] = 10
+
+class JDEmbeddingComparisonResult(BaseModel):
+    jd_id: int
+    matched_cvs: List[Dict[str, Any]] = []
+    total_matches: int = 0

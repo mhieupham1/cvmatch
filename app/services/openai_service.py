@@ -2,10 +2,12 @@ from openai import OpenAI
 import json
 import os
 from typing import Dict, Any
+from .embedding_service import EmbeddingService
 
 class OpenAIService:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.embedding_service = EmbeddingService()
     
     async def parse_cv(self, cv_text: str) -> Dict[str, Any]:
         """Parse CV text and extract structured information"""
@@ -42,7 +44,10 @@ class OpenAIService:
             )
             
             result = response.choices[0].message.content.strip()
-            return json.loads(result)
+            parsed_data = json.loads(result)
+            
+            # Embedding will be handled separately in VectorService
+            return parsed_data
         except Exception as e:
             raise Exception(f"Error parsing CV with OpenAI: {str(e)}")
     
@@ -79,7 +84,11 @@ class OpenAIService:
             )
             
             result = response.choices[0].message.content.strip()
-            return json.loads(result)
+            parsed_data = json.loads(result)
+            
+            # Embedding will be handled separately in VectorService
+            
+            return parsed_data
         except Exception as e:
             raise Exception(f"Error parsing JD with OpenAI: {str(e)}")
     

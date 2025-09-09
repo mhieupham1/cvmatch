@@ -45,3 +45,12 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
+
+# Database files
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads folder (usually contains user data)
+uploads/

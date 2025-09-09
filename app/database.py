@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, JSON, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -26,6 +26,8 @@ class CV(Base):
     work_experience = Column(JSON, nullable=True)  # List[str]
     certifications = Column(JSON, nullable=True)  # List[str]
     raw_data = Column(JSON, nullable=True)  # Store original parsed data
+    # embedding moved to ChromaDB
+    has_embedding = Column(Integer, default=0)  # Flag to track if embedding exists
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class JobDescription(Base):
@@ -41,6 +43,8 @@ class JobDescription(Base):
     education_required = Column(JSON, nullable=True)  # List[str]
     responsibilities = Column(JSON, nullable=True)  # List[str]
     raw_data = Column(JSON, nullable=True)  # Store original parsed data
+    # embedding moved to ChromaDB
+    has_embedding = Column(Integer, default=0)  # Flag to track if embedding exists
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class ComparisonHistory(Base):

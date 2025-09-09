@@ -7,9 +7,12 @@ from dotenv import load_dotenv
 from app.services.file_processor import FileProcessor
 from app.services.openai_service import OpenAIService
 from app.services.comparison_service import ComparisonService
+from app.services.embedding_service import EmbeddingService
+from app.services.vector_service import VectorService
 from app.models.schemas import (
     FileUploadResponse, ComparisonResult, CVResponse, JDResponse,
-    ComparisonRequest, ComparisonHistoryResponse
+    ComparisonRequest, ComparisonHistoryResponse, EmbeddingComparisonRequest,
+    EmbeddingComparisonResult, JDEmbeddingComparisonRequest, JDEmbeddingComparisonResult
 )
 from app.database import get_db, create_tables, CV, JobDescription, ComparisonHistory
 import json
@@ -36,6 +39,8 @@ app.add_middleware(
 file_processor = FileProcessor()
 openai_service = OpenAIService()
 comparison_service = ComparisonService()
+embedding_service = EmbeddingService()
+vector_service = VectorService()
 
 @app.get("/")
 async def root():
@@ -58,7 +63,7 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
         
         os.remove(file_path)
         
-        # Save to database
+        # Save to database (without embedding)
         cv_record = CV(
             filename=file.filename,
             name=parsed_cv.get('name'),
@@ -69,11 +74,34 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
             education=parsed_cv.get('education', []),
             work_experience=parsed_cv.get('work_experience', []),
             certifications=parsed_cv.get('certifications', []),
-            raw_data=parsed_cv
+            raw_data=parsed_cv,
+            has_embedding=0
         )
         db.add(cv_record)
         db.commit()
         db.refresh(cv_record)
+        
+        # Generate and store embedding in ChromaDB
+        try:
+            cv_text_for_embedding = embedding_service.create_text_for_embedding(parsed_cv, "cv")
+            embedding = embedding_service.generate_embedding(cv_text_for_embedding)
+            
+            # Store in ChromaDB with metadata
+            metadata = {
+                "name": parsed_cv.get('name', ''),
+                "role": parsed_cv.get('role', ''),
+                "skills_count": len(parsed_cv.get('skills', [])),
+                "experience_years": parsed_cv.get('experience_years', 0)
+            }
+            vector_service.store_cv_embedding(cv_record.id, embedding, metadata)
+            
+            # Update flag in SQLite
+            cv_record.has_embedding = 1
+            db.commit()
+            
+        except Exception as e:
+            print(f"Warning: Could not create embedding for CV {cv_record.id}: {str(e)}")
+            # Continue without embedding - not critical
         
         return FileUploadResponse(
             id=cv_record.id,
@@ -104,7 +132,7 @@ async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db))
         
         os.remove(file_path)
         
-        # Save to database
+        # Save to database (without embedding)
         jd_record = JobDescription(
             filename=file.filename,
             job_title=parsed_jd.get('job_title', ''),
@@ -114,11 +142,34 @@ async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db))
             experience_required=parsed_jd.get('experience_required'),
             education_required=parsed_jd.get('education_required', []),
             responsibilities=parsed_jd.get('responsibilities', []),
-            raw_data=parsed_jd
+            raw_data=parsed_jd,
+            has_embedding=0
         )
         db.add(jd_record)
         db.commit()
         db.refresh(jd_record)
+        
+        # Generate and store embedding in ChromaDB
+        try:
+            jd_text_for_embedding = embedding_service.create_text_for_embedding(parsed_jd, "jd")
+            embedding = embedding_service.generate_embedding(jd_text_for_embedding)
+            
+            # Store in ChromaDB with metadata
+            metadata = {
+                "job_title": parsed_jd.get('job_title', ''),
+                "company": parsed_jd.get('company', ''),
+                "required_skills_count": len(parsed_jd.get('required_skills', [])),
+                "experience_required": parsed_jd.get('experience_required', 0)
+            }
+            vector_service.store_jd_embedding(jd_record.id, embedding, metadata)
+            
+            # Update flag in SQLite
+            jd_record.has_embedding = 1
+            db.commit()
+            
+        except Exception as e:
+            print(f"Warning: Could not create embedding for JD {jd_record.id}: {str(e)}")
+            # Continue without embedding - not critical
         
         return FileUploadResponse(
             id=jd_record.id,
@@ -287,6 +338,131 @@ async def compare_cv_jd_with_openai(request: ComparisonRequest, db: Session = De
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error comparing CV and JD with OpenAI: {str(e)}")
+
+@app.post("/compare/cv_embedding", response_model=EmbeddingComparisonResult)
+async def find_matching_jds_by_cv_embedding(request: EmbeddingComparisonRequest, db: Session = Depends(get_db)):
+    """Tìm các JD phù hợp với CV dựa trên embedding similarity using ChromaDB"""
+    try:
+        # Lấy CV từ database
+        cv_record = db.query(CV).filter(CV.id == request.cv_id).first()
+        if not cv_record:
+            raise HTTPException(status_code=404, detail=f"CV with id {request.cv_id} not found")
+        
+        if not cv_record.has_embedding:
+            raise HTTPException(status_code=400, detail="CV embedding not found. Please re-upload the CV.")
+        
+        # Sử dụng VectorService để tìm JDs tương tự (nhanh hơn rất nhiều!)
+        similar_jds = vector_service.find_similar_jds_for_cv(
+            request.cv_id, 
+            request.top_k, 
+            request.similarity_threshold
+        )
+        
+        # Lấy chi tiết JDs từ SQLite
+        matched_jds = []
+        for jd_id, similarity_score in similar_jds:
+            jd_record = db.query(JobDescription).filter(JobDescription.id == jd_id).first()
+            if jd_record:
+                matched_jds.append({
+                    "jd_id": jd_id,
+                    "similarity_score": similarity_score,
+                    "job_title": jd_record.job_title,
+                    "company": jd_record.company,
+                    "required_skills": jd_record.required_skills or [],
+                    "experience_required": jd_record.experience_required,
+                    "created_at": jd_record.created_at.isoformat()
+                })
+        
+        return EmbeddingComparisonResult(
+            cv_id=request.cv_id,
+            matched_jds=matched_jds,
+            total_matches=len(matched_jds)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error finding matching JDs: {str(e)}")
+
+@app.post("/compare/jd_embedding", response_model=JDEmbeddingComparisonResult)
+async def find_matching_cvs_by_jd_embedding(request: JDEmbeddingComparisonRequest, db: Session = Depends(get_db)):
+    """Tìm các CV phù hợp với JD dựa trên embedding similarity using ChromaDB"""
+    try:
+        # Lấy JD từ database
+        jd_record = db.query(JobDescription).filter(JobDescription.id == request.jd_id).first()
+        if not jd_record:
+            raise HTTPException(status_code=404, detail=f"JD with id {request.jd_id} not found")
+        
+        if not jd_record.has_embedding:
+            raise HTTPException(status_code=400, detail="JD embedding not found. Please re-upload the JD.")
+        
+        # Sử dụng VectorService để tìm CVs tương tự (nhanh hơn rất nhiều!)
+        similar_cvs = vector_service.find_similar_cvs_for_jd(
+            request.jd_id, 
+            request.top_k, 
+            request.similarity_threshold
+        )
+        
+        # Lấy chi tiết CVs từ SQLite
+        matched_cvs = []
+        for cv_id, similarity_score in similar_cvs:
+            cv_record = db.query(CV).filter(CV.id == cv_id).first()
+            if cv_record:
+                matched_cvs.append({
+                    "cv_id": cv_id,
+                    "similarity_score": similarity_score,
+                    "name": cv_record.name,
+                    "email": cv_record.email,
+                    "role": cv_record.raw_data.get('role') if cv_record.raw_data else None,
+                    "skills": cv_record.skills or [],
+                    "experience_years": cv_record.experience_years,
+                    "created_at": cv_record.created_at.isoformat()
+                })
+        
+        return JDEmbeddingComparisonResult(
+            jd_id=request.jd_id,
+            matched_cvs=matched_cvs,
+            total_matches=len(matched_cvs)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error finding matching CVs: {str(e)}")
+
+@app.delete("/database/clear-all")
+async def clear_all_database(db: Session = Depends(get_db)):
+    """Xóa hết tất cả dữ liệu trong database và ChromaDB"""
+    try:
+        # Delete all comparison histories first (foreign key references)
+        comparison_count = db.query(ComparisonHistory).count()
+        db.query(ComparisonHistory).delete()
+        
+        # Delete all CVs
+        cv_count = db.query(CV).count()
+        db.query(CV).delete()
+        
+        # Delete all Job Descriptions
+        jd_count = db.query(JobDescription).count()
+        db.query(JobDescription).delete()
+        
+        # Clear ChromaDB embeddings
+        vector_service.clear_all_embeddings()
+        
+        db.commit()
+        
+        return {
+            "message": "Successfully cleared all data from database and ChromaDB",
+            "deleted_counts": {
+                "cvs": cv_count,
+                "job_descriptions": jd_count,
+                "comparison_histories": comparison_count,
+                "total": cv_count + jd_count + comparison_count
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error clearing database: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
