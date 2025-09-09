@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { getCVs, deleteAllCVs, CVResponse, API_BASE_URL } from '../services/api';
+import { 
+  getCVs, 
+  deleteAllCVs, 
+  CVResponse, 
+  API_BASE_URL,
+  findJDsForCV,
+  EmbeddingMatchJD,
+  compareCvJdWithAI,
+  AICompareResponse,
+} from '../services/api';
 
 const CVList: React.FC = () => {
   const [cvs, setCvs] = useState<CVResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [deleting, setDeleting] = useState(false);
+  const [matches, setMatches] = useState<Record<number, { loading: boolean; error?: string; data?: EmbeddingMatchJD[] }>>({});
+  const [aiResults, setAiResults] = useState<Record<string, { loading: boolean; error?: string; data?: AICompareResponse }>>({});
 
   useEffect(() => {
     fetchCVs();
@@ -21,6 +32,27 @@ const CVList: React.FC = () => {
       setError(err.response?.data?.detail || 'Failed to fetch CVs');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFindMatches = async (cvId: number) => {
+    setMatches((prev) => ({ ...prev, [cvId]: { loading: true } }));
+    try {
+      const res = await findJDsForCV(cvId, 5, 0.6);
+      setMatches((prev) => ({ ...prev, [cvId]: { loading: false, data: res.matched_jds } }));
+    } catch (err: any) {
+      setMatches((prev) => ({ ...prev, [cvId]: { loading: false, error: err.response?.data?.detail || 'Failed to find matches' } }));
+    }
+  };
+
+  const handleEvaluateAI = async (cvId: number, jdId: number) => {
+    const key = `${cvId}:${jdId}`;
+    setAiResults((prev) => ({ ...prev, [key]: { loading: true } }));
+    try {
+      const res = await compareCvJdWithAI(cvId, jdId);
+      setAiResults((prev) => ({ ...prev, [key]: { loading: false, data: res } }));
+    } catch (err: any) {
+      setAiResults((prev) => ({ ...prev, [key]: { loading: false, error: err.response?.data?.detail || 'AI evaluation failed' } }));
     }
   };
 
@@ -107,7 +139,13 @@ const CVList: React.FC = () => {
                     </span>
                   )}
                 </div>
-                
+
+                <div className="detail-row" style={{ marginTop: '8px' }}>
+                  <button className="btn btn-primary" onClick={() => handleFindMatches(cv.id)} disabled={matches[cv.id]?.loading}>
+                    {matches[cv.id]?.loading ? 'Finding matches...' : 'Find Matches'}
+                  </button>
+                </div>
+
                 {cv.email && (
                   <div className="detail-row">
                     <strong>Email:</strong> {cv.email}
@@ -163,6 +201,45 @@ const CVList: React.FC = () => {
                 <div className="detail-row timestamp">
                   <strong>Uploaded:</strong> {formatDate(cv.created_at)}
                 </div>
+
+                {matches[cv.id]?.error && (
+                  <div className="error-message" style={{ marginTop: '8px' }}>
+                    {matches[cv.id]?.error}
+                  </div>
+                )}
+
+                {matches[cv.id]?.data && matches[cv.id]?.data!.length > 0 && (
+                  <div className="matches-section" style={{ marginTop: '12px' }}>
+                    <strong>Related JDs:</strong>
+                    <div className="matches-list" style={{ marginTop: '8px' }}>
+                      {matches[cv.id]!.data!.map((m) => {
+                        const key = `${cv.id}:${m.jd_id}`;
+                        const scorePct = Math.round((m.similarity_score || 0) * 100);
+                        const ai = aiResults[key];
+                        return (
+                          <div key={m.jd_id} className="match-item" style={{ border: '1px solid #eee', borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                            <div><strong>{m.job_title || 'Unknown JD'}</strong> {m.company ? `@ ${m.company}` : ''}</div>
+                            <div style={{ fontSize: 12, color: '#555' }}>Similarity: {scorePct}%</div>
+                            <div style={{ marginTop: 6 }}>
+                              <button className="btn btn-secondary" onClick={() => handleEvaluateAI(cv.id, m.jd_id)} disabled={ai?.loading}>
+                                {ai?.loading ? 'Evaluating...' : 'Evaluate with AI'}
+                              </button>
+                            </div>
+                            {ai?.error && (
+                              <div className="error-message" style={{ marginTop: 6 }}>{ai.error}</div>
+                            )}
+                            {ai?.data && (
+                              <div className="ai-result" style={{ marginTop: 8 }}>
+                                <div><strong>AI Match Score:</strong> {ai.data.result.match_score}%</div>
+                                <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{ai.data.result.reason}</div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

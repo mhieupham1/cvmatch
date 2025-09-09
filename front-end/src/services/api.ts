@@ -48,6 +48,51 @@ export interface FileUploadResponse {
   created_at: string;
 }
 
+// Embedding match types
+export interface EmbeddingMatchJD {
+  jd_id: number;
+  similarity_score: number;
+  job_title?: string;
+  company?: string;
+  required_skills: string[];
+  experience_required?: number;
+  created_at: string;
+}
+
+export interface EmbeddingComparisonResult {
+  cv_id: number;
+  matched_jds: EmbeddingMatchJD[];
+  total_matches: number;
+}
+
+export interface EmbeddingMatchCV {
+  cv_id: number;
+  similarity_score: number;
+  name?: string;
+  email?: string;
+  role?: string;
+  skills: string[];
+  experience_years?: number;
+  created_at: string;
+}
+
+export interface JDEmbeddingComparisonResult {
+  jd_id: number;
+  matched_cvs: EmbeddingMatchCV[];
+  total_matches: number;
+}
+
+// AI comparison
+export interface AICompareResponse {
+  comparison_type: string;
+  cv_id: number;
+  jd_id: number;
+  result: {
+    match_score: number;
+    reason: string;
+  };
+}
+
 export const uploadCV = async (file: File): Promise<FileUploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
@@ -91,5 +136,42 @@ export const deleteAllCVs = async (): Promise<{ message: string }> => {
 
 export const deleteAllJDs = async (): Promise<{ message: string }> => {
   const response = await api.delete('/jds');
+  return response.data;
+};
+
+export const findJDsForCV = async (
+  cvId: number,
+  topK: number = 5,
+  similarityThreshold: number = 0.7
+): Promise<EmbeddingComparisonResult> => {
+  const response = await api.post('/compare/cv_embedding', {
+    cv_id: cvId,
+    top_k: topK,
+    similarity_threshold: similarityThreshold,
+  });
+  return response.data;
+};
+
+export const findCVsForJD = async (
+  jdId: number,
+  topK: number = 5,
+  similarityThreshold: number = 0.7
+): Promise<JDEmbeddingComparisonResult> => {
+  const response = await api.post('/compare/jd_embedding', {
+    jd_id: jdId,
+    top_k: topK,
+    similarity_threshold: similarityThreshold,
+  });
+  return response.data;
+};
+
+export const compareCvJdWithAI = async (
+  cvId: number,
+  jdId: number
+): Promise<AICompareResponse> => {
+  const response = await api.post('/compare/openai', {
+    cv_id: cvId,
+    jd_id: jdId,
+  });
   return response.data;
 };
