@@ -15,13 +15,16 @@ def migrate_database():
     cursor = conn.cursor()
     
     try:
-        # Kiểm tra xem cột embedding đã tồn tại chưa
+        # Kiểm tra và thêm các cột cần thiết nếu thiếu
         cursor.execute("PRAGMA table_info(cvs)")
         columns = [column[1] for column in cursor.fetchall()]
         
         if 'embedding' not in columns:
             print("Thêm cột embedding vào bảng cvs...")
             cursor.execute("ALTER TABLE cvs ADD COLUMN embedding BLOB")
+        if 'file_path' not in columns:
+            print("Thêm cột file_path vào bảng cvs...")
+            cursor.execute("ALTER TABLE cvs ADD COLUMN file_path TEXT")
         
         cursor.execute("PRAGMA table_info(job_descriptions)")
         columns = [column[1] for column in cursor.fetchall()]
@@ -29,6 +32,9 @@ def migrate_database():
         if 'embedding' not in columns:
             print("Thêm cột embedding vào bảng job_descriptions...")
             cursor.execute("ALTER TABLE job_descriptions ADD COLUMN embedding BLOB")
+        if 'file_path' not in columns:
+            print("Thêm cột file_path vào bảng job_descriptions...")
+            cursor.execute("ALTER TABLE job_descriptions ADD COLUMN file_path TEXT")
         
         conn.commit()
         print("Migration hoàn thành!")

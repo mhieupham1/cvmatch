@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import os
 from dotenv import load_dotenv
@@ -36,6 +37,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve uploaded files statically at /uploads
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 file_processor = FileProcessor()
 openai_service = OpenAIService()
 comparison_service = ComparisonService()
@@ -52,7 +56,16 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail="Only PDF and DOCX files are supported")
     
     try:
-        file_path = f"uploads/cv_{file.filename}"
+        # Ensure upload directory exists
+        os.makedirs("uploads/cvs", exist_ok=True)
+        # Create unique filename to avoid conflicts
+        import uuid
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{timestamp}_{unique_id}_{file.filename}"
+        file_path = f"uploads/cvs/{unique_filename}"
         
         with open(file_path, "wb") as buffer:
             content = await file.read()
@@ -61,11 +74,13 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
         text_content = file_processor.extract_text(file_path)
         parsed_cv = await openai_service.parse_cv(text_content)
         
-        os.remove(file_path)
+        # Keep the file - don't remove it
+        # os.remove(file_path)
         
         # Save to database (without embedding)
         cv_record = CV(
             filename=file.filename,
+            file_path=file_path,
             name=parsed_cv.get('name'),
             email=parsed_cv.get('email'),
             phone=parsed_cv.get('phone'),
@@ -123,7 +138,17 @@ async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail="Only PDF and DOCX files are supported")
     
     try:
-        file_path = f"uploads/jd_{file.filename}"
+        # Ensure upload directory exists
+        os.makedirs("uploads/jds", exist_ok=True)
+
+        # Create unique filename similar to CV flow
+        import uuid
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{timestamp}_{unique_id}_{file.filename}"
+        file_path = f"uploads/jds/{unique_filename}"
         
         with open(file_path, "wb") as buffer:
             content = await file.read()
@@ -132,11 +157,12 @@ async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db))
         text_content = file_processor.extract_text(file_path)
         parsed_jd = await openai_service.parse_jd(text_content)
         
-        os.remove(file_path)
+        # Keep the file - don't remove it
         
         # Save to database (without embedding)
         jd_record = JobDescription(
             filename=file.filename,
+            file_path=file_path,
             job_title=parsed_jd.get('job_title', ''),
             job_category=parsed_jd.get('job_category'),
             company=parsed_jd.get('company', ''),
@@ -196,6 +222,7 @@ async def list_cvs(db: Session = Depends(get_db)):
         CVResponse(
             id=cv.id,
             filename=cv.filename,
+            file_url=(f"/uploads/{cv.file_path.split('uploads/')[1]}" if cv.file_path and 'uploads/' in cv.file_path else None),
             name=cv.name,
             email=cv.email,
             phone=cv.phone,
@@ -215,6 +242,7 @@ async def list_jds(db: Session = Depends(get_db)):
         JDResponse(
             id=jd.id,
             filename=jd.filename,
+            file_url=(f"/uploads/{jd.file_path.split('uploads/')[1]}" if getattr(jd, 'file_path', None) and 'uploads/' in jd.file_path else None),
             job_title=jd.job_title,
             company=jd.company,
             required_skills=jd.required_skills or [],

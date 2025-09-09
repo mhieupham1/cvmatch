@@ -17,6 +17,7 @@ class CV(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=True)  # Store the path to the saved file
     name = Column(String, nullable=True)
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
@@ -36,6 +37,7 @@ class JobDescription(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=True)  # Store the path to the saved file
     job_title = Column(String, nullable=False)
     job_category = Column(String, nullable=True)  # frontend, backend, fullstack, etc.
     company = Column(String, nullable=False)

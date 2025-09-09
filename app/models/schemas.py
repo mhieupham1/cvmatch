@@ -40,6 +40,7 @@ class FileUploadResponse(BaseModel):
 class CVResponse(BaseModel):
     id: int
     filename: str
+    file_url: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -54,6 +55,7 @@ class CVResponse(BaseModel):
 class JDResponse(BaseModel):
     id: int
     filename: str
+    file_url: Optional[str] = None
     job_title: str
     company: str
     required_skills: List[str] = []
