@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  getCVs, 
-  deleteAllCVs, 
-  CVResponse, 
+import {
+  getCVs,
+  deleteAllCVs,
+  CVResponse,
   API_BASE_URL,
   findJDsForCV,
   EmbeddingMatchJD,
@@ -17,6 +17,7 @@ const CVList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [matches, setMatches] = useState<Record<number, { loading: boolean; error?: string; data?: EmbeddingMatchJD[] }>>({});
   const [aiResults, setAiResults] = useState<Record<string, { loading: boolean; error?: string; data?: AICompareResponse }>>({});
+  const [history, setHistory] = useState<Record<number, { loading: boolean; error?: string; data?: any[]; open?: boolean }>>({});
 
   useEffect(() => {
     fetchCVs();
@@ -26,7 +27,7 @@ const CVList: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      const data = await getCVs();
+      const data = await getCVs({ status: 'new' });
       setCvs(data);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to fetch CVs');
@@ -51,8 +52,32 @@ const CVList: React.FC = () => {
     try {
       const res = await compareCvJdWithAI(cvId, jdId);
       setAiResults((prev) => ({ ...prev, [key]: { loading: false, data: res } }));
+      // refresh history for this CV after saving
+      fetchHistory(cvId);
     } catch (err: any) {
       setAiResults((prev) => ({ ...prev, [key]: { loading: false, error: err.response?.data?.detail || 'AI evaluation failed' } }));
+    }
+  };
+
+  const fetchHistory = async (cvId: number) => {
+    setHistory((prev) => ({ ...prev, [cvId]: { ...(prev[cvId] || {}), loading: true, open: true } }));
+    try {
+      const { getComparisons } = await import('../services/api');
+      const items = await getComparisons({ cv_id: cvId });
+      setHistory((prev) => ({ ...prev, [cvId]: { loading: false, data: items, open: true } }));
+    } catch (err: any) {
+      setHistory((prev) => ({ ...prev, [cvId]: { loading: false, error: err.response?.data?.detail || 'Failed to load history', open: true } }));
+    }
+  };
+
+  const handleApprove = async (cvId: number) => {
+    try {
+      const { approveCV } = await import('../services/api');
+      const updated = await approveCV(cvId);
+      // Remove from list after approval (no longer 'new')
+      setCvs((prev) => prev.filter((c) => c.id !== cvId));
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to approve CV');
     }
   };
 
@@ -85,6 +110,8 @@ const CVList: React.FC = () => {
   if (loading) {
     return <div className="loading">Loading CVs...</div>;
   }
+
+  const newCVs = cvs; // Already server-filtered by status=new
 
   return (
     <div className="list-container">
@@ -122,8 +149,10 @@ const CVList: React.FC = () => {
           <p>Upload your first CV to get started</p>
         </div>
       ) : (
+        <>
+        <h3 style={{ marginTop: 12 }}>CV mới ({newCVs.length})</h3>
         <div className="cv-grid">
-          {cvs.map((cv) => (
+          {newCVs.map((cv) => (
             <div key={cv.id} className="cv-card">
               <div className="cv-header">
                 <h3>{cv.name || 'Unknown Name'}</h3>
@@ -137,6 +166,15 @@ const CVList: React.FC = () => {
                     <span style={{ marginLeft: '8px' }}>
                       <a href={`${API_BASE_URL}${cv.file_url}`} target="_blank" rel="noopener noreferrer">Download</a>
                     </span>
+                  )}
+                </div>
+
+                <div className="detail-row" style={{ marginTop: 6 }}>
+                  <strong>Status:</strong> {cv.status || 'new'}
+                  {cv.status !== 'awaiting_interview' && (
+                    <button className="btn btn-success" style={{ marginLeft: 8 }} onClick={() => handleApprove(cv.id)}>
+                      Duyệt (chờ phỏng vấn)
+                    </button>
                   )}
                 </div>
 
@@ -232,6 +270,13 @@ const CVList: React.FC = () => {
                               <div className="ai-result" style={{ marginTop: 8 }}>
                                 <div><strong>AI Match Score:</strong> {ai.data.result.match_score}%</div>
                                 <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{ai.data.result.reason}</div>
+                                {cv.status !== 'awaiting_interview' && (
+                                  <div style={{ marginTop: 8 }}>
+                                    <button className="btn btn-success" onClick={() => handleApprove(cv.id)}>
+                                      Duyệt CV này (chờ phỏng vấn)
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -240,10 +285,37 @@ const CVList: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                <div className="detail-row" style={{ marginTop: 8 }}>
+                  <button className="btn btn-secondary" onClick={() => (history[cv.id]?.open ? setHistory((prev) => ({ ...prev, [cv.id]: { ...(prev[cv.id] || {}), open: false } })) : fetchHistory(cv.id))}>
+                    {history[cv.id]?.open ? 'Ẩn lịch sử AI' : 'Xem lịch sử AI'}
+                  </button>
+                </div>
+
+                {history[cv.id]?.open && (
+                  <div className="history-section" style={{ marginTop: 8 }}>
+                    {history[cv.id]?.loading && <div>Loading history...</div>}
+                    {history[cv.id]?.error && <div className="error-message">{history[cv.id]?.error}</div>}
+                    {history[cv.id]?.data && (history[cv.id]?.data as any[]).length === 0 && <div>Chưa có lịch sử đánh giá.</div>}
+                    {history[cv.id]?.data && (history[cv.id]?.data as any[]).length > 0 && (
+                      <div>
+                        <strong>Lịch sử đánh giá AI:</strong>
+                        <ul style={{ marginTop: 6 }}>
+                          {(history[cv.id]?.data as any[]).map((h: any) => (
+                            <li key={h.id} style={{ fontSize: 13 }}>
+                              [{formatDate(h.created_at)}] JD #{h.jd_id} — Score: {h.match_score}%
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );

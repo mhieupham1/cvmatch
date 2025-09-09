@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import CVUpload from './components/CVUpload';
 import JDUpload from './components/JDUpload';
 import CVList from './components/CVList';
+import CVStatusPage from './components/CVStatusPage';
 import JDList from './components/JDList';
 import './App.css';
 
@@ -17,6 +18,7 @@ function App() {
               <Link to="/upload-cv" className="nav-link">Upload CV</Link>
               <Link to="/upload-jd" className="nav-link">Upload JD</Link>
               <Link to="/cvs" className="nav-link">CV List</Link>
+              <Link to="/cv-status" className="nav-link">CV chờ phỏng vấn</Link>
               <Link to="/jds" className="nav-link">JD List</Link>
             </div>
           </nav>
@@ -28,6 +30,7 @@ function App() {
             <Route path="/upload-cv" element={<CVUpload />} />
             <Route path="/upload-jd" element={<JDUpload />} />
             <Route path="/cvs" element={<CVList />} />
+            <Route path="/cv-status" element={<CVStatusPage />} />
             <Route path="/jds" element={<JDList />} />
           </Routes>
         </main>

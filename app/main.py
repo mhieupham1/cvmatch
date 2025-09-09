@@ -215,8 +215,11 @@ async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db))
 
 # New endpoints for listing stored data
 @app.get("/cvs", response_model=list[CVResponse])
-async def list_cvs(db: Session = Depends(get_db)):
-    cvs = db.query(CV).order_by(CV.created_at.desc()).all()
+async def list_cvs(status: str | None = None, db: Session = Depends(get_db)):
+    query = db.query(CV)
+    if status:
+        query = query.filter(CV.status == status)
+    cvs = query.order_by(CV.created_at.desc()).all()
     print(cvs)
     return [
         CVResponse(
@@ -231,7 +234,8 @@ async def list_cvs(db: Session = Depends(get_db)):
             education=cv.education or [],
             work_experience=cv.work_experience or [],
             certifications=cv.certifications or [],
-            created_at=cv.created_at
+            created_at=cv.created_at,
+            status=getattr(cv, 'status', 'new')
         ) for cv in cvs
     ]
 
@@ -255,8 +259,13 @@ async def list_jds(db: Session = Depends(get_db)):
     ]
 
 @app.get("/comparisons", response_model=list[ComparisonHistoryResponse])
-async def list_comparisons(db: Session = Depends(get_db)):
-    comparisons = db.query(ComparisonHistory).order_by(ComparisonHistory.created_at.desc()).all()
+async def list_comparisons(cv_id: int | None = None, jd_id: int | None = None, db: Session = Depends(get_db)):
+    query = db.query(ComparisonHistory)
+    if cv_id is not None:
+        query = query.filter(ComparisonHistory.cv_id == cv_id)
+    if jd_id is not None:
+        query = query.filter(ComparisonHistory.jd_id == jd_id)
+    comparisons = query.order_by(ComparisonHistory.created_at.desc()).all()
     return [
         ComparisonHistoryResponse(
             id=comp.id,
@@ -267,6 +276,34 @@ async def list_comparisons(db: Session = Depends(get_db)):
             created_at=comp.created_at
         ) for comp in comparisons
     ]
+
+@app.post("/cvs/{cv_id}/approve", response_model=CVResponse)
+async def approve_cv(cv_id: int, db: Session = Depends(get_db)):
+    cv_record = db.query(CV).filter(CV.id == cv_id).first()
+    if not cv_record:
+        raise HTTPException(status_code=404, detail=f"CV with id {cv_id} not found")
+    try:
+        cv_record.status = "awaiting_interview"
+        db.commit()
+        db.refresh(cv_record)
+        return CVResponse(
+            id=cv_record.id,
+            filename=cv_record.filename,
+            file_url=(f"/uploads/{cv_record.file_path.split('uploads/')[1]}" if cv_record.file_path and 'uploads/' in cv_record.file_path else None),
+            name=cv_record.name,
+            email=cv_record.email,
+            phone=cv_record.phone,
+            experience_years=cv_record.experience_years,
+            skills=cv_record.skills or [],
+            education=cv_record.education or [],
+            work_experience=cv_record.work_experience or [],
+            certifications=cv_record.certifications or [],
+            created_at=cv_record.created_at,
+            status=getattr(cv_record, 'status', 'new')
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error approving CV: {str(e)}")
 
 @app.delete("/cvs")
 async def delete_all_cvs(db: Session = Depends(get_db)):

@@ -23,6 +23,7 @@ export interface CVResponse {
   work_experience: any[];
   certifications: string[];
   created_at: string;
+  status?: string;
 }
 
 export interface JDResponse {
@@ -93,6 +94,15 @@ export interface AICompareResponse {
   };
 }
 
+export interface ComparisonHistoryItem {
+  id: number;
+  cv_id: number;
+  jd_id: number;
+  match_score: number;
+  comparison_result: any;
+  created_at: string;
+}
+
 export const uploadCV = async (file: File): Promise<FileUploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
@@ -119,8 +129,8 @@ export const uploadJD = async (file: File): Promise<FileUploadResponse> => {
   return response.data;
 };
 
-export const getCVs = async (): Promise<CVResponse[]> => {
-  const response = await api.get('/cvs');
+export const getCVs = async (params?: { status?: string }): Promise<CVResponse[]> => {
+  const response = await api.get('/cvs', { params });
   return response.data;
 };
 
@@ -173,5 +183,17 @@ export const compareCvJdWithAI = async (
     cv_id: cvId,
     jd_id: jdId,
   });
+  return response.data;
+};
+
+export const getComparisons = async (
+  params?: { cv_id?: number; jd_id?: number }
+): Promise<ComparisonHistoryItem[]> => {
+  const response = await api.get('/comparisons', { params });
+  return response.data;
+};
+
+export const approveCV = async (cvId: number): Promise<CVResponse> => {
+  const response = await api.post(`/cvs/${cvId}/approve`);
   return response.data;
 };

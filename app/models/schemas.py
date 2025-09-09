@@ -51,6 +51,7 @@ class CVResponse(BaseModel):
     work_experience: List[Dict[str, Any]] = []
     certifications: List[str] = []
     created_at: datetime
+    status: Optional[str] = "new"
 
 class JDResponse(BaseModel):
     id: int

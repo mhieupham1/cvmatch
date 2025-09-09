@@ -31,6 +31,7 @@ class CV(Base):
     # embedding moved to ChromaDB
     has_embedding = Column(Integer, default=0)  # Flag to track if embedding exists
     created_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="new")  # new, awaiting_interview, interviewed, etc.
 
 class JobDescription(Base):
     __tablename__ = "job_descriptions"
