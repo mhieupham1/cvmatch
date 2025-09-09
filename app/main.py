@@ -69,6 +69,7 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
             name=parsed_cv.get('name'),
             email=parsed_cv.get('email'),
             phone=parsed_cv.get('phone'),
+            role_category=parsed_cv.get('role_category'),
             experience_years=parsed_cv.get('experience_years'),
             skills=parsed_cv.get('skills', []),
             education=parsed_cv.get('education', []),
@@ -90,6 +91,7 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
             metadata = {
                 "name": parsed_cv.get('name', ''),
                 "role": parsed_cv.get('role', ''),
+                "role_category": parsed_cv.get('role_category', ''),
                 "skills_count": len(parsed_cv.get('skills', [])),
                 "experience_years": parsed_cv.get('experience_years', 0)
             }
@@ -136,6 +138,7 @@ async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db))
         jd_record = JobDescription(
             filename=file.filename,
             job_title=parsed_jd.get('job_title', ''),
+            job_category=parsed_jd.get('job_category'),
             company=parsed_jd.get('company', ''),
             required_skills=parsed_jd.get('required_skills', []),
             preferred_skills=parsed_jd.get('preferred_skills', []),
@@ -157,6 +160,7 @@ async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db))
             # Store in ChromaDB with metadata
             metadata = {
                 "job_title": parsed_jd.get('job_title', ''),
+                "job_category": parsed_jd.get('job_category', ''),
                 "company": parsed_jd.get('company', ''),
                 "required_skills_count": len(parsed_jd.get('required_skills', [])),
                 "experience_required": parsed_jd.get('experience_required', 0)

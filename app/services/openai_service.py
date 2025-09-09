@@ -23,6 +23,7 @@ class OpenAIService:
             "email": "Email address",
             "phone": "Phone number",
             "role": "Current role or target position (e.g. 'Software Developer', 'Senior Engineer')",
+            "role_category": "Classify role into one of these categories: frontend, backend, fullstack, mobile, qa, devops, comtor, data, ai, design, pm, other",
             "experience_years": "Total years of experience (as integer)",
             "skills": ["list", "of", "technical", "skills"],
             "education": ["list", "of", "education", "degrees"],
@@ -62,6 +63,7 @@ class OpenAIService:
         Please extract and return a JSON object with the following structure:
         {{
             "job_title": "Job title",
+            "job_category": "Classify job into one of these categories: frontend, backend, fullstack, mobile, qa, devops, comtor, data, ai, design, pm, other",
             "company": "Company name",
             "required_skills": ["list", "of", "required", "skills"],
             "preferred_skills": ["list", "of", "preferred", "skills"],

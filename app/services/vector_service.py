@@ -43,21 +43,28 @@ class VectorService:
             raise Exception(f"Error storing JD embedding: {str(e)}")
     
     def find_similar_jds_for_cv(self, cv_id: int, n_results: int = 10, 
-                               similarity_threshold: float = 0.7) -> List[Tuple[int, float]]:
+                               similarity_threshold: float = 0.7, filter_by_category: bool = True) -> List[Tuple[int, float]]:
         """Find similar JDs for a given CV"""
         try:
-            # Get CV embedding
-            cv_result = self.cv_collection.get(ids=[str(cv_id)], include=["embeddings"])
+            # Get CV embedding and metadata
+            cv_result = self.cv_collection.get(ids=[str(cv_id)], include=["embeddings", "metadatas"])
             if not cv_result['embeddings']:
                 raise ValueError(f"CV {cv_id} embedding not found")
             
             cv_embedding = cv_result['embeddings'][0]
+            cv_category = cv_result['metadatas'][0].get('role_category') if cv_result['metadatas'] else None
+            
+            # Prepare where filter for category matching
+            where_filter = None
+            if filter_by_category and cv_category:
+                where_filter = {"job_category": cv_category}
             
             # Search for similar JDs
             results = self.jd_collection.query(
                 query_embeddings=[cv_embedding],
                 n_results=n_results,
-                include=["distances"]
+                include=["distances"],
+                where=where_filter
             )
             
             # Convert ChromaDB distances to similarity scores and filter by threshold
@@ -74,21 +81,28 @@ class VectorService:
             raise Exception(f"Error finding similar JDs: {str(e)}")
     
     def find_similar_cvs_for_jd(self, jd_id: int, n_results: int = 10,
-                               similarity_threshold: float = 0.7) -> List[Tuple[int, float]]:
+                               similarity_threshold: float = 0.7, filter_by_category: bool = True) -> List[Tuple[int, float]]:
         """Find similar CVs for a given JD"""
         try:
-            # Get JD embedding
-            jd_result = self.jd_collection.get(ids=[str(jd_id)], include=["embeddings"])
+            # Get JD embedding and metadata
+            jd_result = self.jd_collection.get(ids=[str(jd_id)], include=["embeddings", "metadatas"])
             if not jd_result['embeddings']:
                 raise ValueError(f"JD {jd_id} embedding not found")
             
             jd_embedding = jd_result['embeddings'][0]
+            jd_category = jd_result['metadatas'][0].get('job_category') if jd_result['metadatas'] else None
+            
+            # Prepare where filter for category matching
+            where_filter = None
+            if filter_by_category and jd_category:
+                where_filter = {"role_category": jd_category}
             
             # Search for similar CVs
             results = self.cv_collection.query(
                 query_embeddings=[jd_embedding],
                 n_results=n_results,
-                include=["distances"]
+                include=["distances"],
+                where=where_filter
             )
             
             # Convert distances to similarity scores and filter by threshold

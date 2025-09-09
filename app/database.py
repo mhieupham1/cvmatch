@@ -20,6 +20,7 @@ class CV(Base):
     name = Column(String, nullable=True)
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
+    role_category = Column(String, nullable=True)  # frontend, backend, fullstack, etc.
     experience_years = Column(Integer, nullable=True)
     skills = Column(JSON, nullable=True)  # List[str]
     education = Column(JSON, nullable=True)  # List[str]
@@ -36,6 +37,7 @@ class JobDescription(Base):
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, nullable=False)
     job_title = Column(String, nullable=False)
+    job_category = Column(String, nullable=True)  # frontend, backend, fullstack, etc.
     company = Column(String, nullable=False)
     required_skills = Column(JSON, nullable=True)  # List[str]
     preferred_skills = Column(JSON, nullable=True)  # List[str]

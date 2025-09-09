@@ -90,15 +90,18 @@ class EmbeddingService:
             raise Exception(f"Error calculating similarity: {str(e)}")
     
     def find_similar_items(self, target_embedding: np.ndarray, candidate_embeddings: List[tuple], 
-                          similarity_threshold: float = 0.7, top_k: int = 10) -> List[tuple]:
+                          similarity_threshold: float = 0.7, top_k: int = 10, 
+                          target_category: str = None, candidate_categories: Dict[str, str] = None) -> List[tuple]:
         """
-        Tìm các items tương đồng dựa trên embedding
+        Tìm các items tương đồng dựa trên embedding với job category filtering
         
         Args:
             target_embedding: embedding của item cần tìm tương đồng
             candidate_embeddings: list các tuple (id, embedding) của candidates
             similarity_threshold: ngưỡng similarity tối thiểu
             top_k: số lượng kết quả trả về tối đa
+            target_category: category của target item (để filter)
+            candidate_categories: dict mapping item_id -> category của candidates
         
         Returns:
             List các tuple (id, similarity_score) được sắp xếp theo similarity giảm dần
@@ -107,6 +110,12 @@ class EmbeddingService:
         
         for item_id, embedding in candidate_embeddings:
             try:
+                # Lọc theo category trước nếu có
+                if target_category and candidate_categories:
+                    candidate_category = candidate_categories.get(str(item_id))
+                    if candidate_category and candidate_category != target_category:
+                        continue
+                
                 similarity = self.calculate_cosine_similarity(target_embedding, embedding)
                 if similarity >= similarity_threshold:
                     similarities.append((item_id, similarity))
