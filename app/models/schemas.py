@@ -6,6 +6,7 @@ class CVSchema(BaseModel):
     name: str
     email: Optional[str] = None
     phone: Optional[str] = None
+    role: Optional[str] = None
     experience_years: Optional[int] = None
     skills: List[str] = []
     education: List[str] = []
@@ -42,6 +43,7 @@ class CVResponse(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    role: Optional[str] = None
     experience_years: Optional[int] = None
     skills: List[str] = []
     education: List[str] = []

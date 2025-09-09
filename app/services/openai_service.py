@@ -20,6 +20,7 @@ class OpenAIService:
             "name": "Full name of the person",
             "email": "Email address",
             "phone": "Phone number",
+            "role": "Current role or target position (e.g. 'Software Developer', 'Senior Engineer')",
             "experience_years": "Total years of experience (as integer)",
             "skills": ["list", "of", "technical", "skills"],
             "education": ["list", "of", "education", "degrees"],
@@ -93,35 +94,13 @@ class OpenAIService:
         Job Description Data:
         {json.dumps(jd_data, indent=2, ensure_ascii=False)}
         
-        Please provide a detailed comparison analysis in JSON format with the following structure:
+        Please provide a simple comparison analysis in JSON format with the following structure:
         {{
-            "match_score": "Overall matching percentage (0-100)",
-            "summary": "Brief summary of the match quality",
-            "strengths": ["List of candidate's strengths for this position"],
-            "weaknesses": ["List of areas where candidate doesn't meet requirements"],
-            "skill_analysis": {{
-                "matching_skills": ["Skills that match between CV and JD"],
-                "missing_skills": ["Required skills missing from CV"],
-                "additional_skills": ["Extra skills candidate has that aren't required"]
-            }},
-            "experience_analysis": {{
-                "meets_requirement": "true/false",
-                "cv_experience": "Candidate's experience level",
-                "required_experience": "Required experience level",
-                "analysis": "Detailed analysis of experience match"
-            }},
-            "education_analysis": {{
-                "meets_requirement": "true/false", 
-                "cv_education": "Candidate's education background",
-                "required_education": "Required education level",
-                "analysis": "Detailed analysis of education match"
-            }},
-            "recommendations": ["Specific recommendations for the candidate"],
-            "hiring_recommendation": "strong_recommend/recommend/consider/not_recommend",
-            "detailed_feedback": "Comprehensive feedback about the candidate's fit for this role"
+            "match_score": "Overall matching percentage (0-100 as number)",
+            "reason": "Detailed explanation of why this score was given, including strengths, weaknesses, and specific reasons for the match percentage"
         }}
         
-        Provide detailed, constructive analysis in Vietnamese where appropriate. Return only valid JSON.
+        Provide detailed, constructive analysis in Vietnamese. Return only valid JSON without any markdown formatting or extra text.
         """
         
         try:

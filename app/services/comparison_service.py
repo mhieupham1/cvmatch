@@ -5,6 +5,22 @@ class ComparisonService:
     def compare(self, cv_data: Dict[str, Any], jd_data: Dict[str, Any]) -> ComparisonResult:
         """Compare CV data with JD data and return match score and recommendations"""
         
+        # Quick role filter - if roles don't match, give low score
+        role_match_score = self._calculate_role_match(
+            cv_data.get('role', ''),
+            jd_data.get('job_title', '')
+        )
+        
+        # If role match score is very low, return early with low overall score
+        if role_match_score < 0.3:
+            return ComparisonResult(
+                match_score=0.2,
+                skill_match={'score': 0.0, 'required_matches': [], 'required_missing': jd_data.get('required_skills', [])},
+                experience_match=False,
+                education_match=False,
+                recommendations=[f"CV role '{cv_data.get('role', 'không xác định')}' không phù hợp với vị trí '{jd_data.get('job_title', '')}'"]
+            )
+        
         # Calculate skill match
         skill_match = self._calculate_skill_match(
             cv_data.get('skills', []), 
@@ -24,16 +40,17 @@ class ComparisonService:
             jd_data.get('education_required', [])
         )
         
-        # Calculate overall match score
+        # Calculate overall match score (now includes role match)
         match_score = self._calculate_overall_score(
             skill_match['score'],
             experience_match,
-            education_match
+            education_match,
+            role_match_score
         )
         
         # Generate recommendations
         recommendations = self._generate_recommendations(
-            cv_data, jd_data, skill_match, experience_match, education_match
+            cv_data, jd_data, skill_match, experience_match, education_match, role_match_score
         )
         
         return ComparisonResult(
@@ -105,19 +122,72 @@ class ComparisonService:
         
         return False
     
-    def _calculate_overall_score(self, skill_score: float, experience_match: bool, education_match: bool) -> float:
+    def _calculate_role_match(self, cv_role: str, jd_role: str) -> float:
+        """Calculate role matching score"""
+        if not cv_role or not jd_role:
+            return 0.5  # Neutral score if either role is missing
+        
+        cv_role_lower = cv_role.lower().strip()
+        jd_role_lower = jd_role.lower().strip()
+        
+        # Exact match
+        if cv_role_lower == jd_role_lower:
+            return 1.0
+        
+        # Check if one role is contained in another
+        if cv_role_lower in jd_role_lower or jd_role_lower in cv_role_lower:
+            return 0.8
+        
+        # Common keywords matching
+        cv_words = set(cv_role_lower.split())
+        jd_words = set(jd_role_lower.split())
+        
+        # Remove common stop words
+        stop_words = {'senior', 'junior', 'lead', 'principal', 'staff', 'intern', 'entry', 'level', 'mid'}
+        cv_keywords = cv_words - stop_words
+        jd_keywords = jd_words - stop_words
+        
+        if cv_keywords & jd_keywords:  # Has common keywords
+            overlap_ratio = len(cv_keywords & jd_keywords) / max(len(cv_keywords), len(jd_keywords), 1)
+            return min(0.7, overlap_ratio * 1.2)  # Max 0.7 for keyword match
+        
+        # Check for related roles (basic matching)
+        related_roles = {
+            'developer': ['engineer', 'programmer', 'coder'],
+            'engineer': ['developer', 'programmer'],
+            'analyst': ['specialist', 'consultant'],
+            'manager': ['lead', 'director', 'head'],
+        }
+        
+        for role_type, related in related_roles.items():
+            if role_type in cv_role_lower:
+                if any(related_role in jd_role_lower for related_role in related):
+                    return 0.6
+            if role_type in jd_role_lower:
+                if any(related_role in cv_role_lower for related_role in related):
+                    return 0.6
+        
+        return 0.2  # Very low score for unrelated roles
+    
+    def _calculate_overall_score(self, skill_score: float, experience_match: bool, education_match: bool, role_match_score: float = 1.0) -> float:
         """Calculate overall matching score"""
-        # Weights: Skills 60%, Experience 25%, Education 15%
+        # Weights: Role 20%, Skills 50%, Experience 20%, Education 10%
         experience_score = 1.0 if experience_match else 0.0
         education_score = 1.0 if education_match else 0.0
         
-        overall_score = (skill_score * 0.6) + (experience_score * 0.25) + (education_score * 0.15)
+        overall_score = (role_match_score * 0.2) + (skill_score * 0.5) + (experience_score * 0.2) + (education_score * 0.1)
         return round(overall_score, 2)
     
     def _generate_recommendations(self, cv_data: Dict[str, Any], jd_data: Dict[str, Any], 
-                                skill_match: Dict[str, Any], experience_match: bool, education_match: bool) -> List[str]:
+                                skill_match: Dict[str, Any], experience_match: bool, education_match: bool, role_match_score: float = 1.0) -> List[str]:
         """Generate recommendations based on comparison results"""
         recommendations = []
+        
+        # Role recommendations
+        if role_match_score < 0.3:
+            recommendations.append(f"Role không phù hợp: CV role '{cv_data.get('role', 'không xác định')}' vs JD role '{jd_data.get('job_title', '')}'")
+        elif role_match_score < 0.6:
+            recommendations.append("Role có liên quan nhưng không hoàn toàn phù hợp, cần xem xét kỹ")
         
         # Skill recommendations
         if skill_match['required_missing']:
