@@ -476,17 +476,21 @@ async def find_matching_cvs_by_jd_embedding(request: JDEmbeddingComparisonReques
         matched_cvs = []
         for cv_id, similarity_score in similar_cvs:
             cv_record = db.query(CV).filter(CV.id == cv_id).first()
-            if cv_record:
-                matched_cvs.append({
-                    "cv_id": cv_id,
-                    "similarity_score": similarity_score,
-                    "name": cv_record.name,
-                    "email": cv_record.email,
-                    "role": cv_record.raw_data.get('role') if cv_record.raw_data else None,
-                    "skills": cv_record.skills or [],
-                    "experience_years": cv_record.experience_years,
-                    "created_at": cv_record.created_at.isoformat()
-                })
+            if not cv_record:
+                continue
+            # Skip CVs that are not in 'new' status (e.g., awaiting_interview, interviewed, etc.)
+            if getattr(cv_record, 'status', 'new') != 'new':
+                continue
+            matched_cvs.append({
+                "cv_id": cv_id,
+                "similarity_score": similarity_score,
+                "name": cv_record.name,
+                "email": cv_record.email,
+                "role": cv_record.raw_data.get('role') if cv_record.raw_data else None,
+                "skills": cv_record.skills or [],
+                "experience_years": cv_record.experience_years,
+                "created_at": cv_record.created_at.isoformat()
+            })
         
         return JDEmbeddingComparisonResult(
             jd_id=request.jd_id,

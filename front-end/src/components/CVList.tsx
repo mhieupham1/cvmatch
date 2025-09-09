@@ -171,17 +171,17 @@ const CVList: React.FC = () => {
 
                 <div className="detail-row" style={{ marginTop: 6 }}>
                   <strong>Status:</strong> {cv.status || 'new'}
-                  {cv.status !== 'awaiting_interview' && (
-                    <button className="btn btn-success" style={{ marginLeft: 8 }} onClick={() => handleApprove(cv.id)}>
-                      Duyệt (chờ phỏng vấn)
-                    </button>
-                  )}
                 </div>
 
                 <div className="detail-row" style={{ marginTop: '8px' }}>
                   <button className="btn btn-primary" onClick={() => handleFindMatches(cv.id)} disabled={matches[cv.id]?.loading}>
                     {matches[cv.id]?.loading ? 'Finding matches...' : 'Find Matches'}
                   </button>
+                  {cv.status !== 'awaiting_interview' && (
+                    <button className="btn btn-success" onClick={() => handleApprove(cv.id)}>
+                      Duyệt (chờ phỏng vấn)
+                    </button>
+                  )}
                 </div>
 
                 {cv.email && (

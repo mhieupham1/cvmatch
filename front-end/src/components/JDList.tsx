@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getJDs, deleteAllJDs, JDResponse, API_BASE_URL, findCVsForJD, EmbeddingMatchCV, compareCvJdWithAI, AICompareResponse } from '../services/api';
+import { getJDs, deleteAllJDs, JDResponse, API_BASE_URL, findCVsForJD, EmbeddingMatchCV, compareCvJdWithAI, AICompareResponse, approveCV } from '../services/api';
 
 const JDList: React.FC = () => {
   const [jds, setJds] = useState<JDResponse[]>([]);
@@ -8,6 +8,9 @@ const JDList: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [matches, setMatches] = useState<Record<number, { loading: boolean; error?: string; data?: EmbeddingMatchCV[] }>>({});
   const [aiResults, setAiResults] = useState<Record<string, { loading: boolean; error?: string; data?: AICompareResponse }>>({});
+  const [selected, setSelected] = useState<{ jdId: number; cv: EmbeddingMatchCV } | null>(null);
+  const [approving, setApproving] = useState<boolean>(false);
+  const [approved, setApproved] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     fetchJDs();
@@ -60,6 +63,27 @@ const JDList: React.FC = () => {
       setAiResults((prev) => ({ ...prev, [key]: { loading: false, data: res } }));
     } catch (err: any) {
       setAiResults((prev) => ({ ...prev, [key]: { loading: false, error: err.response?.data?.detail || 'AI evaluation failed' } }));
+    }
+  };
+
+  const openCandidate = (cv: EmbeddingMatchCV, jdId: number) => {
+    setSelected({ jdId, cv });
+  };
+
+  const closeCandidate = () => {
+    setSelected(null);
+  };
+
+  const handleApprove = async (cvId: number) => {
+    try {
+      setApproving(true);
+      await approveCV(cvId);
+      setApproved((prev) => ({ ...prev, [cvId]: true }));
+      alert('Đã duyệt ứng viên chờ phỏng vấn');
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to approve CV');
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -222,7 +246,17 @@ const JDList: React.FC = () => {
                         const ai = aiResults[key];
                         return (
                           <div key={m.cv_id} className="match-item" style={{ border: '1px solid #eee', borderRadius: 6, padding: 8, marginBottom: 8 }}>
-                            <div><strong>{m.name || 'Unknown Candidate'}</strong>{m.role ? ` — ${m.role}` : ''}</div>
+                            <div>
+                              <button
+                                className="link-as-button"
+                                style={{ background: 'none', border: 'none', padding: 0, color: '#1976d2', cursor: 'pointer', fontWeight: 600 }}
+                                onClick={() => openCandidate(m, jd.id)}
+                                title="Xem chi tiết ứng viên"
+                              >
+                                {m.name || 'Unknown Candidate'}
+                              </button>
+                              {m.role ? ` — ${m.role}` : ''}
+                            </div>
                             <div style={{ fontSize: 12, color: '#555' }}>Similarity: {scorePct}%</div>
                             <div style={{ marginTop: 6 }}>
                               <button className="btn btn-secondary" onClick={() => handleEvaluateAI(m.cv_id, jd.id)} disabled={ai?.loading}>
@@ -247,6 +281,74 @@ const JDList: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {selected && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={closeCandidate}
+        >
+          <div
+            className="modal-content"
+            style={{ background: '#fff', borderRadius: 8, width: 'min(720px, 96vw)', maxHeight: '90vh', overflow: 'auto', padding: 16, boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>{selected.cv.name || 'Ứng viên'}</h3>
+              <button className="btn btn-secondary" onClick={closeCandidate}>Đóng</button>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>
+              <div><strong>ID:</strong> {selected.cv.cv_id}</div>
+              {selected.cv.role && <div><strong>Role:</strong> {selected.cv.role}</div>}
+              {typeof (selected.cv as any).email !== 'undefined' && (selected.cv as any).email && (
+                <div><strong>Email:</strong> {(selected.cv as any).email}</div>
+              )}
+              {typeof (selected.cv as any).experience_years !== 'undefined' && selected.cv.experience_years !== undefined && (
+                <div><strong>Kinh nghiệm:</strong> {selected.cv.experience_years} năm</div>
+              )}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <strong>Kỹ năng ({selected.cv.skills?.length || 0}):</strong>
+              <div className="skills-list" style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(selected.cv.skills || []).map((s, idx) => (
+                  <span key={idx} className="skill-tag" style={{ background: '#f3f3f3', padding: '4px 8px', borderRadius: 4 }}>{s}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <em>Similarity score:</em> {Math.round((selected.cv.similarity_score || 0) * 100)}%
+            </div>
+            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-success"
+                disabled={approving || approved[selected.cv.cv_id]}
+                onClick={() => handleApprove(selected.cv.cv_id)}
+              >
+                {approved[selected.cv.cv_id] ? 'Đã duyệt' : (approving ? 'Đang duyệt...' : 'Duyệt ứng viên phỏng vấn')}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleEvaluateAI(selected.cv.cv_id, selected.jdId)}
+                disabled={aiResults[`${selected.cv.cv_id}:${selected.jdId}`]?.loading}
+              >
+                {aiResults[`${selected.cv.cv_id}:${selected.jdId}`]?.loading ? 'Đang đánh giá...' : 'Đánh giá với AI'}
+              </button>
+            </div>
+            {aiResults[`${selected.cv.cv_id}:${selected.jdId}`]?.error && (
+              <div className="error-message" style={{ marginTop: 8 }}>
+                {aiResults[`${selected.cv.cv_id}:${selected.jdId}`]?.error}
+              </div>
+            )}
+            {aiResults[`${selected.cv.cv_id}:${selected.jdId}`]?.data && (
+              <div className="ai-result" style={{ marginTop: 12 }}>
+                <div><strong>AI Match Score:</strong> {aiResults[`${selected.cv.cv_id}:${selected.jdId}`]!.data!.result.match_score}%</div>
+                <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{aiResults[`${selected.cv.cv_id}:${selected.jdId}`]!.data!.result.reason}</div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
