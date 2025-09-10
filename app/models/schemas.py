@@ -97,3 +97,15 @@ class JDEmbeddingComparisonResult(BaseModel):
     jd_id: int
     matched_cvs: List[Dict[str, Any]] = []
     total_matches: int = 0
+
+class BulkUploadResult(BaseModel):
+    filename: str
+    success: bool
+    result: Optional[FileUploadResponse] = None
+    error: Optional[str] = None
+
+class BulkUploadResponse(BaseModel):
+    total_files: int
+    successful_uploads: int
+    failed_uploads: int
+    results: List[BulkUploadResult] = []

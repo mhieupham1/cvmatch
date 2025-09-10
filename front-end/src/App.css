@@ -185,6 +185,55 @@ body {
   background-color: #e3f2fd;
 }
 
+.upload-mode-selector {
+  margin-bottom: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.upload-mode-selector label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.upload-mode-selector input[type="radio"] {
+  margin: 0;
+}
+
+.selected-files {
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.selected-files h4 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.selected-files ul {
+  list-style: none;
+  padding: 0;
+}
+
+.file-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e9ecef;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
 .error-message {
   background-color: #f8d7da;
   color: #721c24;
@@ -204,6 +253,93 @@ body {
 .upload-result h3 {
   color: #0c5460;
   margin-bottom: 1rem;
+}
+
+.upload-summary {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.upload-summary p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.result-item {
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 1rem;
+  background-color: white;
+}
+
+.result-item.success {
+  border-left: 4px solid #28a745;
+}
+
+.result-item.error {
+  border-left: 4px solid #dc3545;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.result-header h4 {
+  margin: 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.status {
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.status.success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status.error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.error-details {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.result-details {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.result-details h5 {
+  margin: 0.5rem 0;
+  color: #333;
+  font-size: 0.9rem;
 }
 
 .result-details {

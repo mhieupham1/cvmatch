@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -13,7 +14,8 @@ from app.services.vector_service import VectorService
 from app.models.schemas import (
     FileUploadResponse, ComparisonResult, CVResponse, JDResponse,
     ComparisonRequest, ComparisonHistoryResponse, EmbeddingComparisonRequest,
-    EmbeddingComparisonResult, JDEmbeddingComparisonRequest, JDEmbeddingComparisonResult
+    EmbeddingComparisonResult, JDEmbeddingComparisonRequest, JDEmbeddingComparisonResult,
+    BulkUploadResponse, BulkUploadResult
 )
 from app.database import get_db, create_tables, CV, JobDescription, ComparisonHistory
 import json
@@ -131,6 +133,123 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+
+@app.post("/upload/cvs/bulk", response_model=BulkUploadResponse)
+async def bulk_upload_cvs(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
+    """
+    Upload multiple CV files at once
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+    
+    results = []
+    successful_uploads = 0
+    failed_uploads = 0
+    
+    for file in files:
+        result = BulkUploadResult(filename=file.filename, success=False)
+        
+        try:
+            # Validate file type
+            if not file.filename.lower().endswith(('.pdf', '.docx')):
+                result.error = "Only PDF and DOCX files are supported"
+                result.success = False
+                failed_uploads += 1
+                results.append(result)
+                continue
+            
+            # Ensure upload directory exists
+            os.makedirs("uploads/cvs", exist_ok=True)
+            
+            # Create unique filename to avoid conflicts
+            import uuid
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_id = str(uuid.uuid4())[:8]
+            file_extension = os.path.splitext(file.filename)[1]
+            unique_filename = f"{timestamp}_{unique_id}_{file.filename}"
+            file_path = f"uploads/cvs/{unique_filename}"
+            
+            # Save file
+            with open(file_path, "wb") as buffer:
+                content = await file.read()
+                buffer.write(content)
+            
+            # Process file
+            text_content = file_processor.extract_text(file_path)
+            parsed_cv = await openai_service.parse_cv(text_content)
+            
+            # Save to database
+            cv_record = CV(
+                filename=file.filename,
+                file_path=file_path,
+                name=parsed_cv.get('name'),
+                email=parsed_cv.get('email'),
+                phone=parsed_cv.get('phone'),
+                role_category=parsed_cv.get('role_category'),
+                experience_years=parsed_cv.get('experience_years'),
+                skills=parsed_cv.get('skills', []),
+                education=parsed_cv.get('education', []),
+                work_experience=parsed_cv.get('work_experience', []),
+                certifications=parsed_cv.get('certifications', []),
+                raw_data=parsed_cv,
+                has_embedding=0
+            )
+            db.add(cv_record)
+            db.commit()
+            db.refresh(cv_record)
+            
+            # Generate and store embedding in ChromaDB
+            try:
+                cv_text_for_embedding = embedding_service.create_text_for_embedding(parsed_cv, "cv")
+                embedding = embedding_service.generate_embedding(cv_text_for_embedding)
+                
+                # Store in ChromaDB with metadata
+                metadata = {
+                    "name": parsed_cv.get('name', ''),
+                    "role": parsed_cv.get('role', ''),
+                    "role_category": parsed_cv.get('role_category', ''),
+                    "skills_count": len(parsed_cv.get('skills', [])),
+                    "experience_years": parsed_cv.get('experience_years', 0)
+                }
+                vector_service.store_cv_embedding(cv_record.id, embedding, metadata)
+                
+                # Update flag in SQLite
+                cv_record.has_embedding = 1
+                db.commit()
+                
+            except Exception as e:
+                print(f"Warning: Could not create embedding for CV {cv_record.id}: {str(e)}")
+                # Continue without embedding - not critical
+            
+            # Create successful response
+            upload_response = FileUploadResponse(
+                id=cv_record.id,
+                filename=file.filename,
+                file_type="CV",
+                status="success",
+                parsed_data=parsed_cv,
+                created_at=cv_record.created_at
+            )
+            
+            result.result = upload_response
+            result.success = True
+            successful_uploads += 1
+            
+        except Exception as e:
+            db.rollback()
+            result.error = f"Error processing file: {str(e)}"
+            result.success = False
+            failed_uploads += 1
+        
+        results.append(result)
+    
+    return BulkUploadResponse(
+        total_files=len(files),
+        successful_uploads=successful_uploads,
+        failed_uploads=failed_uploads,
+        results=results
+    )
 
 @app.post("/upload/jd", response_model=FileUploadResponse)
 async def upload_jd(file: UploadFile = File(...), db: Session = Depends(get_db)):

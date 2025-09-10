@@ -50,6 +50,20 @@ export interface FileUploadResponse {
   created_at: string;
 }
 
+export interface BulkUploadResult {
+  filename: string;
+  success: boolean;
+  result?: FileUploadResponse;
+  error?: string;
+}
+
+export interface BulkUploadResponse {
+  total_files: number;
+  successful_uploads: number;
+  failed_uploads: number;
+  results: BulkUploadResult[];
+}
+
 // Embedding match types
 export interface EmbeddingMatchJD {
   jd_id: number;
@@ -109,6 +123,21 @@ export const uploadCV = async (file: File): Promise<FileUploadResponse> => {
   formData.append('file', file);
   
   const response = await api.post('/upload/cv', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  return response.data;
+};
+
+export const bulkUploadCVs = async (files: File[]): Promise<BulkUploadResponse> => {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+  
+  const response = await api.post('/upload/cvs/bulk', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
