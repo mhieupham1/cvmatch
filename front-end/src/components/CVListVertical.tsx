@@ -11,6 +11,8 @@ import {
   searchCVs,
   CVSearchResult,
 } from '../services/api';
+import FileViewerSimple from './FileViewerSimple';
+import './CVListVertical.css';
 
 interface CVDetailModalProps {
   cv: CVResponse | null;
@@ -100,6 +102,16 @@ const CVDetailModal: React.FC<CVDetailModalProps> = ({ cv, isOpen, onClose, onAp
                   </a>
                 )}
               </div>
+              
+              {/* CV File Preview */}
+              {cv.file_url && (
+                <div className="detail-item file-preview-container">
+                  <strong>Xem trước:</strong>
+                  <div className="file-preview">
+                    <FileViewerSimple fileUrl={cv.file_url} fileName={cv.filename} />
+                  </div>
+                </div>
+              )}
               <div className="detail-item">
                 <strong>Ngày upload:</strong> {formatDate(cv.created_at)}
               </div>

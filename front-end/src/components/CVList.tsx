@@ -8,6 +8,8 @@ import {
   compareCvJdWithAI,
   AICompareResponse,
 } from '../services/api';
+import FileViewerSimple from './FileViewerSimple';
+import './CVListVertical.css';
 
 const CVList: React.FC = () => {
   const [cvs, setCvs] = useState<CVResponse[]>([]);
@@ -142,6 +144,16 @@ const CVList: React.FC = () => {
                     </span>
                   )}
                 </div>
+                
+                {/* CV File Preview */}
+                {cv.file_url && (
+                  <div className="detail-row file-preview-container">
+                    <strong>Xem trước:</strong>
+                    <div className="file-preview" style={{ height: '300px', marginTop: '10px' }}>
+                      <FileViewerSimple fileUrl={cv.file_url} fileName={cv.filename} />
+                    </div>
+                  </div>
+                )}
 
                 <div className="detail-row" style={{ marginTop: 6 }}>
                   <strong>Status:</strong> {cv.status || 'new'}
