@@ -20,8 +20,8 @@ function App() {
               <Link to="/upload-cv" className="nav-link">Upload CV</Link>
               <Link to="/upload-jd" className="nav-link">Upload JD</Link>
               <Link to="/cvs" className="nav-link">CV List</Link>
-              <Link to="/cv-status" className="nav-link">CV chờ phỏng vấn</Link>
               <Link to="/jds" className="nav-link">JD List</Link>
+              <Link to="/cv-status" className="nav-link">CV chờ phỏng vấn</Link>
             </div>
           </nav>
         </header>

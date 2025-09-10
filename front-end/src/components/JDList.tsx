@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getJDs, deleteAllJDs, JDResponse, API_BASE_URL, findCVsForJD, EmbeddingMatchCV, compareCvJdWithAI, AICompareResponse, approveCV } from '../services/api';
+import { getJDs, JDResponse, API_BASE_URL, findCVsForJD, EmbeddingMatchCV, compareCvJdWithAI, AICompareResponse, approveCV } from '../services/api';
 
 const JDList: React.FC = () => {
   const [jds, setJds] = useState<JDResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [deleting, setDeleting] = useState(false);
   const [matches, setMatches] = useState<Record<number, { loading: boolean; error?: string; data?: EmbeddingMatchCV[] }>>({});
   const [aiResults, setAiResults] = useState<Record<string, { loading: boolean; error?: string; data?: AICompareResponse }>>({});
   const [selected, setSelected] = useState<{ jdId: number; cv: EmbeddingMatchCV } | null>(null);
@@ -29,21 +28,6 @@ const JDList: React.FC = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Are you sure you want to delete all Job Descriptions? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      await deleteAllJDs();
-      setJds([]);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete JDs');
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const handleFindMatches = async (jdId: number) => {
     setMatches((prev) => ({ ...prev, [jdId]: { loading: true } }));
@@ -113,15 +97,6 @@ const JDList: React.FC = () => {
           >
             Refresh
           </button>
-          {jds.length > 0 && (
-            <button 
-              onClick={handleDeleteAll} 
-              className="btn btn-danger"
-              disabled={deleting}
-            >
-              {deleting ? 'Deleting...' : 'Delete All'}
-            </button>
-          )}
         </div>
       </div>
 

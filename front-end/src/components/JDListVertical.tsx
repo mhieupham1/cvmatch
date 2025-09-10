@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   getJDs,
-  deleteAllJDs,
   JDResponse,
   API_BASE_URL,
   findCVsForJD,
@@ -232,7 +231,6 @@ const JDListVertical: React.FC = () => {
   const [jds, setJds] = useState<JDResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [deleting, setDeleting] = useState(false);
   const [selectedJD, setSelectedJD] = useState<JDResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -253,21 +251,6 @@ const JDListVertical: React.FC = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tất cả JD? Hành động này không thể hoàn tác.')) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      await deleteAllJDs();
-      setJds([]);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete JDs');
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const handleViewDetails = (jd: JDResponse) => {
     setSelectedJD(jd);
@@ -295,15 +278,6 @@ const JDListVertical: React.FC = () => {
           >
             Làm mới
           </button>
-          {jds.length > 0 && (
-            <button 
-              onClick={handleDeleteAll} 
-              className="btn btn-danger"
-              disabled={deleting}
-            >
-              {deleting ? 'Đang xóa...' : 'Xóa tất cả'}
-            </button>
-          )}
         </div>
       </div>
 

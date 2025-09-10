@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   getCVs,
-  deleteAllCVs,
   CVResponse,
   API_BASE_URL,
   findJDsForCV,
@@ -262,7 +261,6 @@ const CVListVertical: React.FC = () => {
   const [cvs, setCvs] = useState<CVResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [deleting, setDeleting] = useState(false);
   const [selectedCV, setSelectedCV] = useState<CVResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -283,21 +281,6 @@ const CVListVertical: React.FC = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tất cả CV? Hành động này không thể hoàn tác.')) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      await deleteAllCVs();
-      setCvs([]);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete CVs');
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const handleViewDetails = (cv: CVResponse) => {
     setSelectedCV(cv);
@@ -336,15 +319,6 @@ const CVListVertical: React.FC = () => {
           >
             Làm mới
           </button>
-          {cvs.length > 0 && (
-            <button 
-              onClick={handleDeleteAll} 
-              className="btn btn-danger"
-              disabled={deleting}
-            >
-              {deleting ? 'Đang xóa...' : 'Xóa tất cả'}
-            </button>
-          )}
         </div>
       </div>
 

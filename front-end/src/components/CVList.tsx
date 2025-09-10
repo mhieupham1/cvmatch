@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   getCVs,
-  deleteAllCVs,
   CVResponse,
   API_BASE_URL,
   findJDsForCV,
@@ -14,7 +13,6 @@ const CVList: React.FC = () => {
   const [cvs, setCvs] = useState<CVResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [deleting, setDeleting] = useState(false);
   const [matches, setMatches] = useState<Record<number, { loading: boolean; error?: string; data?: EmbeddingMatchJD[] }>>({});
   const [aiResults, setAiResults] = useState<Record<string, { loading: boolean; error?: string; data?: AICompareResponse }>>({});
   const [history, setHistory] = useState<Record<number, { loading: boolean; error?: string; data?: any[]; open?: boolean }>>({});
@@ -81,21 +79,6 @@ const CVList: React.FC = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Are you sure you want to delete all CVs? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      await deleteAllCVs();
-      setCvs([]);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete CVs');
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -125,15 +108,6 @@ const CVList: React.FC = () => {
           >
             Refresh
           </button>
-          {cvs.length > 0 && (
-            <button 
-              onClick={handleDeleteAll} 
-              className="btn btn-danger"
-              disabled={deleting}
-            >
-              {deleting ? 'Deleting...' : 'Delete All'}
-            </button>
-          )}
         </div>
       </div>
 
