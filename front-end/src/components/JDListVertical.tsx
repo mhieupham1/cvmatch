@@ -26,6 +26,15 @@ const JDDetailModal: React.FC<JDDetailModalProps> = ({ jd, isOpen, onClose, onUp
   const [approved, setApproved] = useState<Record<number, boolean>>({});
   const [approving, setApproving] = useState<boolean>(false);
   const [updatingPriority, setUpdatingPriority] = useState<boolean>(false);
+  
+  // Clear matches and AI results when modal is closed or JD changes
+  useEffect(() => {
+    if (!isOpen) {
+      setMatches({ loading: false });
+      setAiResults({});
+      setApproved({});
+    }
+  }, [isOpen]);
 
   const handleFindMatches = async () => {
     if (!jd) return;

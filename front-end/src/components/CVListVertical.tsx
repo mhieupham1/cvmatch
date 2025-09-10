@@ -24,6 +24,14 @@ interface CVDetailModalProps {
 const CVDetailModal: React.FC<CVDetailModalProps> = ({ cv, isOpen, onClose, onApprove }) => {
   const [matches, setMatches] = useState<{ loading: boolean; error?: string; data?: EmbeddingMatchJD[] }>({ loading: false });
   const [aiResults, setAiResults] = useState<Record<string, { loading: boolean; error?: string; data?: AICompareResponse }>>({});
+  
+  // Clear matches and AI results when modal is closed or CV changes
+  useEffect(() => {
+    if (!isOpen) {
+      setMatches({ loading: false });
+      setAiResults({});
+    }
+  }, [isOpen]);
 
   const handleFindMatches = async () => {
     if (!cv) return;
