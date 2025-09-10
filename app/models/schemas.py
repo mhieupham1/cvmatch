@@ -119,3 +119,23 @@ class BulkUploadResponse(BaseModel):
     successful_uploads: int
     failed_uploads: int
     results: List[BulkUploadResult] = []
+
+class CVSearchRequest(BaseModel):
+    query: str
+    similarity_threshold: Optional[float] = 0.6
+    top_k: Optional[int] = 10
+
+class CVSearchResult(BaseModel):
+    query: str
+    matched_cvs: List[Dict[str, Any]] = []
+    total_matches: int = 0
+    
+class JDSearchRequest(BaseModel):
+    query: str
+    similarity_threshold: Optional[float] = 0.6
+    top_k: Optional[int] = 10
+
+class JDSearchResult(BaseModel):
+    query: str
+    matched_jds: List[Dict[str, Any]] = []
+    total_matches: int = 0

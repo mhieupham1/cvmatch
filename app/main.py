@@ -15,7 +15,8 @@ from app.models.schemas import (
     FileUploadResponse, ComparisonResult, CVResponse, JDResponse,
     ComparisonRequest, ComparisonHistoryResponse, EmbeddingComparisonRequest,
     EmbeddingComparisonResult, JDEmbeddingComparisonRequest, JDEmbeddingComparisonResult,
-    BulkUploadResponse, BulkUploadResult
+    BulkUploadResponse, BulkUploadResult, CVSearchRequest, CVSearchResult,
+    JDSearchRequest, JDSearchResult
 )
 from app.database import get_db, create_tables, CV, JobDescription, ComparisonHistory
 import json
@@ -452,6 +453,110 @@ async def approve_cv(cv_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error approving CV: {str(e)}")
+
+@app.post("/cvs/search", response_model=CVSearchResult)
+async def search_cvs_by_text(request: CVSearchRequest, db: Session = Depends(get_db)):
+    """Tìm kiếm CV bằng text query sử dụng embedding similarity"""
+    try:
+        # Tìm kiếm CV sử dụng vector service
+        similar_cv_ids = vector_service.search_cvs_by_text(
+            query_text=request.query,
+            n_results=request.top_k,
+            similarity_threshold=request.similarity_threshold
+        )
+        
+        if not similar_cv_ids:
+            return CVSearchResult(
+                query=request.query,
+                matched_cvs=[],
+                total_matches=0
+            )
+        
+        # Lấy thông tin chi tiết của các CV match
+        matched_cvs = []
+        for cv_id, similarity_score in similar_cv_ids:
+            cv_record = db.query(CV).filter(CV.id == cv_id).first()
+            if cv_record:
+                cv_data = {
+                    "cv_id": cv_record.id,
+                    "name": cv_record.name,
+                    "role": cv_record.role,
+                    "experience_years": cv_record.experience_years,
+                    "location": cv_record.location,
+                    "skills": cv_record.skills or [],
+                    "filename": cv_record.filename,
+                    "file_url": (f"/uploads/{cv_record.file_path.split('uploads/')[1]}" if cv_record.file_path and 'uploads/' in cv_record.file_path else None),
+                    "similarity_score": similarity_score,
+                    "email": cv_record.email,
+                    "phone": cv_record.phone,
+                    "birth_year": getattr(cv_record, 'birth_year', None),
+                    "languages": getattr(cv_record, 'languages', []) or [],
+                    "project_scope": getattr(cv_record, 'project_scope', []) or [],
+                    "customer": getattr(cv_record, 'customer', []) or [],
+                    "education": cv_record.education or [],
+                    "work_experience": cv_record.work_experience or [],
+                    "certifications": cv_record.certifications or [],
+                    "created_at": cv_record.created_at.isoformat(),
+                    "status": getattr(cv_record, 'status', 'new')
+                }
+                matched_cvs.append(cv_data)
+        
+        return CVSearchResult(
+            query=request.query,
+            matched_cvs=matched_cvs,
+            total_matches=len(matched_cvs)
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching CVs: {str(e)}")
+
+@app.post("/jds/search", response_model=JDSearchResult)
+async def search_jds_by_text(request: JDSearchRequest, db: Session = Depends(get_db)):
+    """Tìm kiếm JD bằng text query sử dụng embedding similarity"""
+    try:
+        # Tìm kiếm JD sử dụng vector service
+        similar_jd_ids = vector_service.search_jds_by_text(
+            query_text=request.query,
+            n_results=request.top_k,
+            similarity_threshold=request.similarity_threshold
+        )
+        
+        if not similar_jd_ids:
+            return JDSearchResult(
+                query=request.query,
+                matched_jds=[],
+                total_matches=0
+            )
+        
+        # Lấy thông tin chi tiết của các JD match
+        matched_jds = []
+        for jd_id, similarity_score in similar_jd_ids:
+            jd_record = db.query(JobDescription).filter(JobDescription.id == jd_id).first()
+            if jd_record:
+                jd_data = {
+                    "jd_id": jd_record.id,
+                    "job_title": jd_record.job_title,
+                    "company": jd_record.company,
+                    "required_skills": jd_record.required_skills or [],
+                    "preferred_skills": jd_record.preferred_skills or [],
+                    "experience_required": jd_record.experience_required,
+                    "education_required": jd_record.education_required or [],
+                    "responsibilities": jd_record.responsibilities or [],
+                    "filename": jd_record.filename,
+                    "file_url": (f"/uploads/{jd_record.file_path.split('uploads/')[1]}" if getattr(jd_record, 'file_path', None) and 'uploads/' in jd_record.file_path else None),
+                    "similarity_score": similarity_score,
+                    "created_at": jd_record.created_at.isoformat()
+                }
+                matched_jds.append(jd_data)
+        
+        return JDSearchResult(
+            query=request.query,
+            matched_jds=matched_jds,
+            total_matches=len(matched_jds)
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching JDs: {str(e)}")
 
 @app.delete("/cvs")
 async def delete_all_cvs(db: Session = Depends(get_db)):

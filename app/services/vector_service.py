@@ -178,3 +178,57 @@ class VectorService:
                 
         except Exception as e:
             raise Exception(f"Error clearing embeddings: {str(e)}")
+    
+    def search_cvs_by_text(self, query_text: str, n_results: int = 10, 
+                          similarity_threshold: float = 0.6) -> List[Tuple[int, float]]:
+        """Search CVs using text query by generating embedding and finding similar CVs"""
+        try:
+            # Generate embedding for the query text
+            query_embedding = self.embedding_service.generate_embedding(query_text)
+            
+            # Search for similar CVs using the query embedding
+            results = self.cv_collection.query(
+                query_embeddings=[query_embedding.tolist()],
+                n_results=n_results,
+                include=["distances"]
+            )
+            
+            # Convert distances to similarity scores and filter by threshold
+            similar_cvs = []
+            for cv_id, distance in zip(results['ids'][0], results['distances'][0]):
+                # ChromaDB uses L2 distance, convert to cosine similarity
+                similarity = 1 - (distance / 2)  # Approximate conversion
+                if similarity >= similarity_threshold:
+                    similar_cvs.append((int(cv_id), similarity))
+            
+            return similar_cvs
+            
+        except Exception as e:
+            raise Exception(f"Error searching CVs by text: {str(e)}")
+            
+    def search_jds_by_text(self, query_text: str, n_results: int = 10, 
+                          similarity_threshold: float = 0.6) -> List[Tuple[int, float]]:
+        """Search JDs using text query by generating embedding and finding similar JDs"""
+        try:
+            # Generate embedding for the query text
+            query_embedding = self.embedding_service.generate_embedding(query_text)
+            
+            # Search for similar JDs using the query embedding
+            results = self.jd_collection.query(
+                query_embeddings=[query_embedding.tolist()],
+                n_results=n_results,
+                include=["distances"]
+            )
+            
+            # Convert distances to similarity scores and filter by threshold
+            similar_jds = []
+            for jd_id, distance in zip(results['ids'][0], results['distances'][0]):
+                # ChromaDB uses L2 distance, convert to cosine similarity
+                similarity = 1 - (distance / 2)  # Approximate conversion
+                if similarity >= similarity_threshold:
+                    similar_jds.append((int(jd_id), similarity))
+            
+            return similar_jds
+            
+        except Exception as e:
+            raise Exception(f"Error searching JDs by text: {str(e)}")

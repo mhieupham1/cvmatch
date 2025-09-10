@@ -232,3 +232,87 @@ export const approveCV = async (cvId: number): Promise<CVResponse> => {
   const response = await api.post(`/cvs/${cvId}/approve`);
   return response.data;
 };
+
+export interface CVSearchRequest {
+  query: string;
+  similarity_threshold?: number;
+  top_k?: number;
+}
+
+export interface CVSearchResult {
+  query: string;
+  matched_cvs: Array<{
+    cv_id: number;
+    name?: string;
+    role?: string;
+    experience_years?: number;
+    location?: string;
+    skills: string[];
+    filename: string;
+    file_url?: string;
+    similarity_score: number;
+    email?: string;
+    phone?: string;
+    birth_year?: number;
+    languages: string[];
+    project_scope: string[];
+    customer: string[];
+    education: string[];
+    work_experience: string[];
+    certifications: string[];
+    created_at: string;
+    status?: string;
+  }>;
+  total_matches: number;
+}
+
+export const searchCVs = async (
+  query: string,
+  similarityThreshold: number = 0.6,
+  topK: number = 10
+): Promise<CVSearchResult> => {
+  const response = await api.post('/cvs/search', {
+    query,
+    similarity_threshold: similarityThreshold,
+    top_k: topK,
+  });
+  return response.data;
+};
+
+export interface JDSearchRequest {
+  query: string;
+  similarity_threshold?: number;
+  top_k?: number;
+}
+
+export interface JDSearchResult {
+  query: string;
+  matched_jds: Array<{
+    jd_id: number;
+    job_title: string;
+    company: string;
+    required_skills: string[];
+    preferred_skills: string[];
+    experience_required?: number;
+    education_required: string[];
+    responsibilities: string[];
+    filename: string;
+    file_url?: string;
+    similarity_score: number;
+    created_at: string;
+  }>;
+  total_matches: number;
+}
+
+export const searchJDs = async (
+  query: string,
+  similarityThreshold: number = 0.6,
+  topK: number = 10
+): Promise<JDSearchResult> => {
+  const response = await api.post('/jds/search', {
+    query,
+    similarity_threshold: similarityThreshold,
+    top_k: topK,
+  });
+  return response.data;
+};

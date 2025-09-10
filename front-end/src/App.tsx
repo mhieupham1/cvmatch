@@ -15,7 +15,7 @@ function App() {
       <div className="App">
         <header className="App-header">
           <nav className="navbar">
-            <h1>CV-JD Matching System</h1>
+            <h1>RecruitAI</h1>
             <div className="nav-links">
               <Link to="/upload-cv" className="nav-link">Upload CV</Link>
               <Link to="/upload-jd" className="nav-link">Upload JD</Link>
@@ -43,7 +43,7 @@ function App() {
 
 const Home = () => (
   <div className="home">
-    <h2>Welcome to CV-JD Matching System</h2>
+    <h2>Welcome to RecruitAI</h2>
     <p>Upload and manage CVs and Job Descriptions</p>
     <div className="home-actions">
       <Link to="/upload-cv" className="btn btn-primary">Upload CV</Link>

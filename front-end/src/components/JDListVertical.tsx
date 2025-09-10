@@ -8,6 +8,8 @@ import {
   compareCvJdWithAI,
   AICompareResponse,
   approveCV,
+  searchJDs,
+  JDSearchResult,
 } from '../services/api';
 
 interface JDDetailModalProps {
@@ -233,6 +235,12 @@ const JDListVertical: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [selectedJD, setSelectedJD] = useState<JDResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  
+  // Search states
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<JDSearchResult | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   useEffect(() => {
     fetchJDs();
@@ -249,6 +257,49 @@ const JDListVertical: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setShowSearchResults(false);
+      setSearchResults(null);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      setError('');
+      const results = await searchJDs(searchQuery, 0.6, 10);
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to search JDs');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults(null);
+    setShowSearchResults(false);
+    setError('');
+  };
+
+  const convertSearchResultToJD = (searchResult: any): JDResponse => {
+    return {
+      id: searchResult.jd_id,
+      filename: searchResult.filename,
+      file_url: searchResult.file_url,
+      job_title: searchResult.job_title,
+      company: searchResult.company,
+      required_skills: searchResult.required_skills || [],
+      preferred_skills: searchResult.preferred_skills || [],
+      experience_required: searchResult.experience_required,
+      education_required: searchResult.education_required || [],
+      responsibilities: searchResult.responsibilities || [],
+      created_at: searchResult.created_at,
+    };
   };
 
 
@@ -269,7 +320,7 @@ const JDListVertical: React.FC = () => {
   return (
     <div className="cv-list-vertical">
       <div className="list-header">
-        <h2>Danh sách Job Description ({jds.length})</h2>
+        <h2>Danh sách Job Description {showSearchResults ? `(Kết quả tìm kiếm: ${searchResults?.total_matches || 0})` : `(${jds.length})`}</h2>
         <div className="list-actions">
           <button 
             onClick={fetchJDs} 
@@ -280,6 +331,53 @@ const JDListVertical: React.FC = () => {
           </button>
         </div>
       </div>
+      
+      {/* Search Box */}
+      <div className="search-section" style={{ marginBottom: '20px' }}>
+        <div className="search-input-group">
+          <input
+            type="text"
+            placeholder="Tìm kiếm JD (ví dụ: 'developer 3 năm kinh nghiệm', 'React frontend'...)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch();
+              }
+            }}
+            className="search-input"
+            style={{
+              width: '70%',
+              padding: '10px 15px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
+          <button 
+            onClick={handleSearch}
+            disabled={isSearching || !searchQuery.trim()}
+            className="btn btn-primary"
+            style={{ marginLeft: '10px' }}
+          >
+            {isSearching ? 'Đang tìm...' : 'Tìm kiếm'}
+          </button>
+          {showSearchResults && (
+            <button 
+              onClick={handleClearSearch}
+              className="btn btn-secondary"
+              style={{ marginLeft: '10px' }}
+            >
+              Xóa tìm kiếm
+            </button>
+          )}
+        </div>
+        {showSearchResults && (
+          <div className="search-info" style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+            Tìm kiếm: "{searchResults?.query}" - {searchResults?.total_matches || 0} kết quả
+          </div>
+        )}
+      </div>
 
       {error && (
         <div className="error-message">
@@ -287,35 +385,82 @@ const JDListVertical: React.FC = () => {
         </div>
       )}
 
-      {jds.length === 0 && !loading ? (
-        <div className="empty-state">
-          <h3>Không có JD nào</h3>
-          <p>Upload JD đầu tiên để bắt đầu</p>
-        </div>
-      ) : (
-        <div className="cv-list-items">
-          {jds.map((jd) => (
-            <div key={jd.id} className="cv-item">
-              <div className="cv-item-content">
-                <div className="cv-main-info">
-                  <h3 className="cv-name">{jd.job_title || 'Vị trí không xác định'}</h3>
-                  <p className="cv-role">{jd.company || 'Công ty không xác định'}</p>
-                  <p className="cv-experience">
-                    {jd.experience_required ? `${jd.experience_required} năm kinh nghiệm` : 'Kinh nghiệm không xác định'}
-                  </p>
+      {showSearchResults ? (
+        // Search Results
+        searchResults?.matched_jds.length === 0 ? (
+          <div className="empty-state">
+            <h3>Không tìm thấy JD phù hợp</h3>
+            <p>Thử thay đổi từ khóa tìm kiếm</p>
+          </div>
+        ) : (
+          <div className="cv-list-items">
+            {searchResults?.matched_jds.map((result) => {
+              const jd = convertSearchResultToJD(result);
+              const similarityPct = Math.round((result.similarity_score || 0) * 100);
+              return (
+                <div key={jd.id} className="cv-item">
+                  <div className="cv-item-content">
+                    <div className="cv-main-info">
+                      <h3 className="cv-name">{jd.job_title || 'Vị trí không xác định'}</h3>
+                      <p className="cv-role">{jd.company || 'Công ty không xác định'}</p>
+                      <p className="cv-experience">
+                        {jd.experience_required ? `${jd.experience_required} năm kinh nghiệm` : 'Kinh nghiệm không xác định'}
+                      </p>
+                      <div className="similarity-score" style={{ 
+                        color: '#007bff', 
+                        fontWeight: 'bold', 
+                        fontSize: '14px',
+                        marginTop: '5px'
+                      }}>
+                        Độ tương đồng: {similarityPct}%
+                      </div>
+                    </div>
+                    <div className="cv-item-actions">
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => handleViewDetails(jd)}
+                      >
+                        Xem chi tiết
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="cv-item-actions">
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => handleViewDetails(jd)}
-                  >
-                    Xem chi tiết
-                  </button>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        // Regular JD List
+        jds.length === 0 && !loading ? (
+          <div className="empty-state">
+            <h3>Không có JD nào</h3>
+            <p>Upload JD đầu tiên để bắt đầu</p>
+          </div>
+        ) : (
+          <div className="cv-list-items">
+            {jds.map((jd) => (
+              <div key={jd.id} className="cv-item">
+                <div className="cv-item-content">
+                  <div className="cv-main-info">
+                    <h3 className="cv-name">{jd.job_title || 'Vị trí không xác định'}</h3>
+                    <p className="cv-role">{jd.company || 'Công ty không xác định'}</p>
+                    <p className="cv-experience">
+                      {jd.experience_required ? `${jd.experience_required} năm kinh nghiệm` : 'Kinh nghiệm không xác định'}
+                    </p>
+                  </div>
+                  <div className="cv-item-actions">
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => handleViewDetails(jd)}
+                    >
+                      Xem chi tiết
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       <JDDetailModal

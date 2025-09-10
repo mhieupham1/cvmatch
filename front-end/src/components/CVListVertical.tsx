@@ -8,6 +8,8 @@ import {
   compareCvJdWithAI,
   AICompareResponse,
   approveCV,
+  searchCVs,
+  CVSearchResult,
 } from '../services/api';
 
 interface CVDetailModalProps {
@@ -263,6 +265,12 @@ const CVListVertical: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [selectedCV, setSelectedCV] = useState<CVResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  
+  // Search states
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<CVSearchResult | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   useEffect(() => {
     fetchCVs();
@@ -279,6 +287,57 @@ const CVListVertical: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setShowSearchResults(false);
+      setSearchResults(null);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      setError('');
+      const results = await searchCVs(searchQuery, 0.6, 10);
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to search CVs');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults(null);
+    setShowSearchResults(false);
+    setError('');
+  };
+
+  const convertSearchResultToCV = (searchResult: any): CVResponse => {
+    return {
+      id: searchResult.cv_id,
+      filename: searchResult.filename,
+      file_url: searchResult.file_url,
+      name: searchResult.name,
+      email: searchResult.email,
+      phone: searchResult.phone,
+      role: searchResult.role,
+      experience_years: searchResult.experience_years,
+      birth_year: searchResult.birth_year,
+      languages: searchResult.languages || [],
+      project_scope: searchResult.project_scope || [],
+      customer: searchResult.customer || [],
+      location: searchResult.location,
+      skills: searchResult.skills || [],
+      education: searchResult.education || [],
+      work_experience: searchResult.work_experience || [],
+      certifications: searchResult.certifications || [],
+      created_at: searchResult.created_at,
+      status: searchResult.status,
+    };
   };
 
 
@@ -310,7 +369,7 @@ const CVListVertical: React.FC = () => {
   return (
     <div className="cv-list-vertical">
       <div className="list-header">
-        <h2>Danh sách CV ({cvs.length})</h2>
+        <h2>Danh sách CV {showSearchResults ? `(Kết quả tìm kiếm: ${searchResults?.total_matches || 0})` : `(${cvs.length})`}</h2>
         <div className="list-actions">
           <button 
             onClick={fetchCVs} 
@@ -322,41 +381,135 @@ const CVListVertical: React.FC = () => {
         </div>
       </div>
 
+      {/* Search Box */}
+      <div className="search-section" style={{ marginBottom: '20px' }}>
+        <div className="search-input-group">
+          <input
+            type="text"
+            placeholder="Tìm kiếm CV (ví dụ: 'tester 3 năm kinh nghiệm', 'developer React'...)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch();
+              }
+            }}
+            className="search-input"
+            style={{
+              width: '70%',
+              padding: '10px 15px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
+          <button 
+            onClick={handleSearch}
+            disabled={isSearching || !searchQuery.trim()}
+            className="btn btn-primary"
+            style={{ marginLeft: '10px' }}
+          >
+            {isSearching ? 'Đang tìm...' : 'Tìm kiếm'}
+          </button>
+          {showSearchResults && (
+            <button 
+              onClick={handleClearSearch}
+              className="btn btn-secondary"
+              style={{ marginLeft: '10px' }}
+            >
+              Xóa tìm kiếm
+            </button>
+          )}
+        </div>
+        {showSearchResults && (
+          <div className="search-info" style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+            Tìm kiếm: "{searchResults?.query}" - {searchResults?.total_matches || 0} kết quả
+          </div>
+        )}
+      </div>
+
       {error && (
         <div className="error-message">
           {error}
         </div>
       )}
 
-      {cvs.length === 0 && !loading ? (
-        <div className="empty-state">
-          <h3>Không có CV nào</h3>
-          <p>Upload CV đầu tiên để bắt đầu</p>
-        </div>
-      ) : (
-        <div className="cv-list-items">
-          {cvs.map((cv) => (
-            <div key={cv.id} className="cv-item">
-              <div className="cv-item-content">
-                <div className="cv-main-info">
-                  <h3 className="cv-name">{cv.name || 'Tên không xác định'}</h3>
-                  <p className="cv-role">{cv.role || 'Vị trí không xác định'}</p>
-                  <p className="cv-experience">
-                    {cv.experience_years ? `${cv.experience_years} năm kinh nghiệm` : 'Kinh nghiệm không xác định'}
-                  </p>
+      {showSearchResults ? (
+        // Search Results
+        searchResults?.matched_cvs.length === 0 ? (
+          <div className="empty-state">
+            <h3>Không tìm thấy CV phù hợp</h3>
+            <p>Thử thay đổi từ khóa tìm kiếm</p>
+          </div>
+        ) : (
+          <div className="cv-list-items">
+            {searchResults?.matched_cvs.map((result) => {
+              const cv = convertSearchResultToCV(result);
+              const similarityPct = Math.round((result.similarity_score || 0) * 100);
+              return (
+                <div key={cv.id} className="cv-item">
+                  <div className="cv-item-content">
+                    <div className="cv-main-info">
+                      <h3 className="cv-name">{cv.name || 'Tên không xác định'}</h3>
+                      <p className="cv-role">{cv.role || 'Vị trí không xác định'}</p>
+                      <p className="cv-experience">
+                        {cv.experience_years ? `${cv.experience_years} năm kinh nghiệm` : 'Kinh nghiệm không xác định'}
+                      </p>
+                      <div className="similarity-score" style={{ 
+                        color: '#007bff', 
+                        fontWeight: 'bold', 
+                        fontSize: '14px',
+                        marginTop: '5px'
+                      }}>
+                        Độ tương đồng: {similarityPct}%
+                      </div>
+                    </div>
+                    <div className="cv-item-actions">
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => handleViewDetails(cv)}
+                      >
+                        Xem chi tiết
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="cv-item-actions">
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => handleViewDetails(cv)}
-                  >
-                    Xem chi tiết
-                  </button>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        // Regular CV List
+        cvs.length === 0 && !loading ? (
+          <div className="empty-state">
+            <h3>Không có CV nào</h3>
+            <p>Upload CV đầu tiên để bắt đầu</p>
+          </div>
+        ) : (
+          <div className="cv-list-items">
+            {cvs.map((cv) => (
+              <div key={cv.id} className="cv-item">
+                <div className="cv-item-content">
+                  <div className="cv-main-info">
+                    <h3 className="cv-name">{cv.name || 'Tên không xác định'}</h3>
+                    <p className="cv-role">{cv.role || 'Vị trí không xác định'}</p>
+                    <p className="cv-experience">
+                      {cv.experience_years ? `${cv.experience_years} năm kinh nghiệm` : 'Kinh nghiệm không xác định'}
+                    </p>
+                  </div>
+                  <div className="cv-item-actions">
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => handleViewDetails(cv)}
+                    >
+                      Xem chi tiết
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       <CVDetailModal
