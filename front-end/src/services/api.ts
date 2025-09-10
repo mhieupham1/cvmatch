@@ -21,7 +21,7 @@ export interface CVResponse {
   experience_years?: number;
   skills: string[];
   education: string[];
-  work_experience: any[];
+  work_experience: string[];
   certifications: string[];
   created_at: string;
   status?: string;

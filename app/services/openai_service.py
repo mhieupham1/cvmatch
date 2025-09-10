@@ -26,12 +26,23 @@ class OpenAIService:
             "role_category": "Classify role into one of these categories: frontend, backend, fullstack, mobile, qa, devops, comtor, data, ai, design, pm, other",
             "experience_years": "Total years of experience (as integer)",
             "skills": ["list", "of", "technical", "skills"],
-            "education": ["list", "of", "education", "degrees"],
-            "work_experience": ["list", "of", "work", "experiences"],
+            "education": [
+                "Each item MUST be a single human-readable string describing one education entry (institution, degree, major, years).",
+                "Do NOT return objects/dictionaries for education entries."
+            ],
+            "work_experience": [
+                "Each item MUST be a single human-readable string describing one work experience entry (company, title, responsibilities, dates).",
+                "Do NOT return objects/dictionaries for work_experience entries."
+            ],
             "certifications": ["list", "of", "certifications"]
         }}
 
-        Return only valid JSON without any additional text or formatting.
+        Strict formatting rules:
+        - Return only valid JSON without any additional text or formatting.
+        - The field "education" MUST be an array of strings only. No nested objects.
+        - The field "work_experience" MUST be an array of strings only. No nested objects.
+        - If dates are available, include them inside the string, e.g. "BSc in Computer Science @ ABC University (2016 - 2020)".
+        - If only partial info is available, still produce a reasonable string.
         """
         
         try:

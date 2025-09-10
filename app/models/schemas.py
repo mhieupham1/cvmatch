@@ -10,7 +10,7 @@ class CVSchema(BaseModel):
     experience_years: Optional[int] = None
     skills: List[str] = []
     education: List[str] = []
-    work_experience: List[Dict[str, Any]] = []
+    work_experience: List[str] = []
     certifications: List[str] = []
 
 class JDSchema(BaseModel):
@@ -48,7 +48,7 @@ class CVResponse(BaseModel):
     experience_years: Optional[int] = None
     skills: List[str] = []
     education: List[str] = []
-    work_experience: List[Dict[str, Any]] = []
+    work_experience: List[str] = []
     certifications: List[str] = []
     created_at: datetime
     status: Optional[str] = "new"
