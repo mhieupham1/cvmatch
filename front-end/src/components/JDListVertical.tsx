@@ -10,19 +10,22 @@ import {
   approveCV,
   searchJDs,
   JDSearchResult,
+  updateJDPriority,
 } from '../services/api';
 
 interface JDDetailModalProps {
   jd: JDResponse | null;
   isOpen: boolean;
   onClose: () => void;
+  onUpdatePriority: (jdId: number, priority: string) => Promise<void>;
 }
 
-const JDDetailModal: React.FC<JDDetailModalProps> = ({ jd, isOpen, onClose }) => {
+const JDDetailModal: React.FC<JDDetailModalProps> = ({ jd, isOpen, onClose, onUpdatePriority }) => {
   const [matches, setMatches] = useState<{ loading: boolean; error?: string; data?: EmbeddingMatchCV[] }>({ loading: false });
   const [aiResults, setAiResults] = useState<Record<string, { loading: boolean; error?: string; data?: AICompareResponse }>>({});
   const [approved, setApproved] = useState<Record<number, boolean>>({});
   const [approving, setApproving] = useState<boolean>(false);
+  const [updatingPriority, setUpdatingPriority] = useState<boolean>(false);
 
   const handleFindMatches = async () => {
     if (!jd) return;
@@ -93,6 +96,35 @@ const JDDetailModal: React.FC<JDDetailModalProps> = ({ jd, isOpen, onClose }) =>
               </div>
               <div className="detail-item">
                 <strong>Kinh nghiệm yêu cầu:</strong> {jd.experience_required ? `${jd.experience_required} năm` : 'N/A'}
+              </div>
+              <div className="detail-item">
+                <strong>Độ ưu tiên:</strong>
+                <select
+                  value={jd.priority || 'medium'}
+                  onChange={(e) => {
+                    if (!jd) return;
+                    setUpdatingPriority(true);
+                    onUpdatePriority(jd.id, e.target.value)
+                      .then(() => setUpdatingPriority(false))
+                      .catch(() => setUpdatingPriority(false));
+                  }}
+                  style={{
+                    marginLeft: '8px',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: jd.priority === 'high' ? '#ff4d4f' : 
+                                    jd.priority === 'low' ? '#52c41a' : '#faad14',
+                    color: 'white',
+                    border: 'none',
+                    cursor: updatingPriority ? 'wait' : 'pointer'
+                  }}
+                  disabled={updatingPriority}
+                >
+                  <option value="high">Cao</option>
+                  <option value="medium">Trung bình</option>
+                  <option value="low">Thấp</option>
+                </select>
+                {updatingPriority && <span style={{ marginLeft: '8px', fontSize: '12px' }}>Đang cập nhật...</span>}
               </div>
               <div className="detail-item">
                 <strong>File:</strong> {jd.filename}
@@ -242,6 +274,7 @@ const JDListVertical: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [selectedJD, setSelectedJD] = useState<JDResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
   
   // Search states
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -258,7 +291,16 @@ const JDListVertical: React.FC = () => {
       setLoading(true);
       setError('');
       const data = await getJDs();
-      setJds(data);
+      
+      // Sort JDs by priority (high > medium > low)
+      const sortedData = [...data].sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 1; // Default to medium
+        const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 1;
+        return priorityA - priorityB;
+      });
+      
+      setJds(sortedData);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to fetch JDs');
     } finally {
@@ -319,6 +361,37 @@ const JDListVertical: React.FC = () => {
     setModalOpen(false);
     setSelectedJD(null);
   };
+  
+  const handleUpdatePriority = async (jdId: number, priority: string) => {
+    try {
+      await updateJDPriority(jdId, priority);
+      
+      // Update the JD in the local state
+      setJds((prevJds) => {
+        const updatedJds = prevJds.map((jd) => 
+          jd.id === jdId ? { ...jd, priority } : jd
+        );
+        
+        // Re-sort the JDs by priority
+        return [...updatedJds].sort((a, b) => {
+          const priorityOrder = { high: 0, medium: 1, low: 2 };
+          const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 1;
+          const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 1;
+          return priorityA - priorityB;
+        });
+      });
+      
+      // Update the selected JD if it's the one being modified
+      if (selectedJD && selectedJD.id === jdId) {
+        setSelectedJD({...selectedJD, priority});
+      }
+      
+      return Promise.resolve();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to update priority');
+      return Promise.reject(err);
+    }
+  };
 
   if (loading) {
     return <div className="loading">Đang tải danh sách JD...</div>;
@@ -329,6 +402,20 @@ const JDListVertical: React.FC = () => {
       <div className="list-header">
         <h2>Danh sách Job Description {showSearchResults ? `(Kết quả tìm kiếm: ${searchResults?.total_matches || 0})` : `(${jds.length})`}</h2>
         <div className="list-actions">
+          <div className="filter-section" style={{ marginRight: '15px' }}>
+            <label htmlFor="priorityFilter" style={{ marginRight: '8px' }}>Lọc theo độ ưu tiên:</label>
+            <select 
+              id="priorityFilter"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              style={{ padding: '5px', borderRadius: '4px' }}
+            >
+              <option value="all">Tất cả</option>
+              <option value="high">Cao</option>
+              <option value="medium">Trung bình</option>
+              <option value="low">Thấp</option>
+            </select>
+          </div>
           <button 
             onClick={fetchJDs} 
             className="btn btn-secondary"
@@ -445,7 +532,9 @@ const JDListVertical: React.FC = () => {
           </div>
         ) : (
           <div className="cv-list-items">
-            {jds.map((jd) => (
+            {jds
+              .filter(jd => priorityFilter === 'all' || jd.priority === priorityFilter)
+              .map((jd) => (
               <div key={jd.id} className="cv-item">
                 <div className="cv-item-content">
                   <div className="cv-main-info">
@@ -454,6 +543,22 @@ const JDListVertical: React.FC = () => {
                     <p className="cv-experience">
                       {jd.experience_required ? `${jd.experience_required} năm kinh nghiệm` : 'Kinh nghiệm không xác định'}
                     </p>
+                    <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px' }}>
+                      <span 
+                        className={`priority-badge priority-${jd.priority || 'medium'}`}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          backgroundColor: jd.priority === 'high' ? '#ff4d4f' : 
+                                        jd.priority === 'low' ? '#52c41a' : '#faad14',
+                          color: 'white'
+                        }}
+                      >
+                        Ưu tiên: {jd.priority === 'high' ? 'Cao' : jd.priority === 'low' ? 'Thấp' : 'Trung bình'}
+                      </span>
+                    </div>
                   </div>
                   <div className="cv-item-actions">
                     <button 
@@ -474,6 +579,7 @@ const JDListVertical: React.FC = () => {
         jd={selectedJD}
         isOpen={modalOpen}
         onClose={handleCloseModal}
+        onUpdatePriority={handleUpdatePriority}
       />
     </div>
   );

@@ -56,6 +56,7 @@ class JobDescription(Base):
     raw_data = Column(JSON, nullable=True)  # Store original parsed data
     # embedding moved to ChromaDB
     has_embedding = Column(Integer, default=0)  # Flag to track if embedding exists
+    priority = Column(String, default="medium")  # Priority: high, medium, low
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class ComparisonHistory(Base):

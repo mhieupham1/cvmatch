@@ -26,6 +26,7 @@ class JDSchema(BaseModel):
     experience_required: Optional[int] = None
     education_required: List[str] = []
     responsibilities: List[str] = []
+    priority: Optional[str] = "medium"  # high, medium, low
 
 class ComparisonResult(BaseModel):
     match_score: float
@@ -74,6 +75,7 @@ class JDResponse(BaseModel):
     experience_required: Optional[int] = None
     education_required: List[str] = []
     responsibilities: List[str] = []
+    priority: str = "medium"  # high, medium, low
     created_at: datetime
 
 class ComparisonRequest(BaseModel):
@@ -139,3 +141,6 @@ class JDSearchResult(BaseModel):
     query: str
     matched_jds: List[Dict[str, Any]] = []
     total_matches: int = 0
+
+class UpdateJDPriorityRequest(BaseModel):
+    priority: str  # high, medium, low

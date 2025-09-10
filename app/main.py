@@ -16,7 +16,7 @@ from app.models.schemas import (
     ComparisonRequest, ComparisonHistoryResponse, EmbeddingComparisonRequest,
     EmbeddingComparisonResult, JDEmbeddingComparisonRequest, JDEmbeddingComparisonResult,
     BulkUploadResponse, BulkUploadResult, CVSearchRequest, CVSearchResult,
-    JDSearchRequest, JDSearchResult
+    JDSearchRequest, JDSearchResult, UpdateJDPriorityRequest
 )
 from app.database import get_db, create_tables, CV, JobDescription, ComparisonHistory
 import json
@@ -397,6 +397,7 @@ async def list_jds(db: Session = Depends(get_db)):
             experience_required=jd.experience_required,
             education_required=jd.education_required or [],
             responsibilities=jd.responsibilities or [],
+            priority=getattr(jd, 'priority', 'medium'),
             created_at=jd.created_at
         ) for jd in jds
     ]
@@ -453,6 +454,40 @@ async def approve_cv(cv_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error approving CV: {str(e)}")
+
+@app.patch("/jds/{jd_id}/priority", response_model=JDResponse)
+async def update_jd_priority(jd_id: int, request: UpdateJDPriorityRequest, db: Session = Depends(get_db)):
+    """Update the priority of a Job Description"""
+    jd_record = db.query(JobDescription).filter(JobDescription.id == jd_id).first()
+    if not jd_record:
+        raise HTTPException(status_code=404, detail=f"JD with id {jd_id} not found")
+    
+    # Validate priority value
+    if request.priority not in ["high", "medium", "low"]:
+        raise HTTPException(status_code=400, detail="Priority must be one of: high, medium, low")
+    
+    try:
+        jd_record.priority = request.priority
+        db.commit()
+        db.refresh(jd_record)
+        
+        return JDResponse(
+            id=jd_record.id,
+            filename=jd_record.filename,
+            file_url=(f"/uploads/{jd_record.file_path.split('uploads/')[1]}" if getattr(jd_record, 'file_path', None) and 'uploads/' in jd_record.file_path else None),
+            job_title=jd_record.job_title,
+            company=jd_record.company,
+            required_skills=jd_record.required_skills or [],
+            preferred_skills=jd_record.preferred_skills or [],
+            experience_required=jd_record.experience_required,
+            education_required=jd_record.education_required or [],
+            responsibilities=jd_record.responsibilities or [],
+            priority=jd_record.priority,
+            created_at=jd_record.created_at
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating JD priority: {str(e)}")
 
 @app.post("/cvs/search", response_model=CVSearchResult)
 async def search_cvs_by_text(request: CVSearchRequest, db: Session = Depends(get_db)):

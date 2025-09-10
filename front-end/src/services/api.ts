@@ -43,6 +43,7 @@ export interface JDResponse {
   experience_required?: number;
   education_required: string[];
   responsibilities: string[];
+  priority?: string;
   created_at: string;
 }
 
@@ -230,6 +231,11 @@ export const getComparisons = async (
 
 export const approveCV = async (cvId: number): Promise<CVResponse> => {
   const response = await api.post(`/cvs/${cvId}/approve`);
+  return response.data;
+};
+
+export const updateJDPriority = async (jdId: number, priority: string): Promise<JDResponse> => {
+  const response = await api.patch(`/jds/${jdId}/priority`, { priority });
   return response.data;
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getJDs, JDResponse, API_BASE_URL, findCVsForJD, EmbeddingMatchCV, compareCvJdWithAI, AICompareResponse, approveCV } from '../services/api';
+import { getJDs, JDResponse, API_BASE_URL, findCVsForJD, EmbeddingMatchCV, compareCvJdWithAI, AICompareResponse, approveCV, updateJDPriority } from '../services/api';
 
 const JDList: React.FC = () => {
   const [jds, setJds] = useState<JDResponse[]>([]);
@@ -10,6 +10,8 @@ const JDList: React.FC = () => {
   const [selected, setSelected] = useState<{ jdId: number; cv: EmbeddingMatchCV } | null>(null);
   const [approving, setApproving] = useState<boolean>(false);
   const [approved, setApproved] = useState<Record<number, boolean>>({});
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [updatingPriority, setUpdatingPriority] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     fetchJDs();
@@ -20,7 +22,16 @@ const JDList: React.FC = () => {
       setLoading(true);
       setError('');
       const data = await getJDs();
-      setJds(data);
+      
+      // Sort JDs by priority (high > medium > low)
+      const sortedData = [...data].sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const priorityA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 1; // Default to medium
+        const priorityB = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 1;
+        return priorityA - priorityB;
+      });
+      
+      setJds(sortedData);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to fetch JDs');
     } finally {
@@ -70,6 +81,24 @@ const JDList: React.FC = () => {
       setApproving(false);
     }
   };
+  
+  const handlePriorityChange = async (jdId: number, priority: string) => {
+    try {
+      setUpdatingPriority((prev) => ({ ...prev, [jdId]: true }));
+      await updateJDPriority(jdId, priority);
+      
+      // Update the JD in the local state
+      setJds((prevJds) => 
+        prevJds.map((jd) => 
+          jd.id === jdId ? { ...jd, priority } : jd
+        )
+      );
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to update priority');
+    } finally {
+      setUpdatingPriority((prev) => ({ ...prev, [jdId]: false }));
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -90,6 +119,20 @@ const JDList: React.FC = () => {
       <div className="list-header">
         <h2>Job Description List ({jds.length})</h2>
         <div className="list-actions">
+          <div className="filter-section" style={{ marginRight: '15px' }}>
+            <label htmlFor="priorityFilter" style={{ marginRight: '8px' }}>Priority Filter:</label>
+            <select 
+              id="priorityFilter"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              style={{ padding: '5px', borderRadius: '4px' }}
+            >
+              <option value="all">All</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
           <button 
             onClick={fetchJDs} 
             className="btn btn-secondary"
@@ -113,11 +156,40 @@ const JDList: React.FC = () => {
         </div>
       ) : (
         <div className="jd-grid">
-          {jds.map((jd) => (
+          {jds
+            .filter(jd => priorityFilter === 'all' || jd.priority === priorityFilter)
+            .map((jd) => (
             <div key={jd.id} className="jd-card">
               <div className="jd-header">
                 <h3>{jd.job_title || 'Unknown Position'}</h3>
-                <span className="jd-id">ID: {jd.id}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="jd-id">ID: {jd.id}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <select
+                      value={jd.priority || 'medium'}
+                      onChange={(e) => handlePriorityChange(jd.id, e.target.value)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        backgroundColor: jd.priority === 'high' ? '#ff4d4f' : 
+                                        jd.priority === 'low' ? '#52c41a' : '#faad14',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                      disabled={updatingPriority[jd.id]}
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                    {updatingPriority[jd.id] && (
+                      <span style={{ fontSize: '12px', color: '#666' }}>Updating...</span>
+                    )}
+                  </div>
+                </div>
               </div>
               
               <div className="jd-details">
