@@ -244,7 +244,14 @@ const JDList: React.FC = () => {
                             {ai?.data && (
                               <div className="ai-result" style={{ marginTop: 8 }}>
                                 <div><strong>AI Match Score:</strong> {ai.data.result.match_score}%</div>
-                                <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{ai.data.result.reason}</div>
+                                <div 
+                                  style={{ marginTop: 4 }} 
+                                  dangerouslySetInnerHTML={{ 
+                                    __html: ai.data.result.reason.startsWith('<') 
+                                      ? ai.data.result.reason 
+                                      : `<div>${ai.data.result.reason}</div>` 
+                                  }}
+                                ></div>
                               </div>
                             )}
                           </div>
@@ -320,7 +327,14 @@ const JDList: React.FC = () => {
             {aiResults[`${selected.cv.cv_id}:${selected.jdId}`]?.data && (
               <div className="ai-result" style={{ marginTop: 12 }}>
                 <div><strong>AI Match Score:</strong> {aiResults[`${selected.cv.cv_id}:${selected.jdId}`]!.data!.result.match_score}%</div>
-                <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{aiResults[`${selected.cv.cv_id}:${selected.jdId}`]!.data!.result.reason}</div>
+                <div 
+                  style={{ marginTop: 6 }} 
+                  dangerouslySetInnerHTML={{ 
+                    __html: aiResults[`${selected.cv.cv_id}:${selected.jdId}`]!.data!.result.reason.startsWith('<')
+                      ? aiResults[`${selected.cv.cv_id}:${selected.jdId}`]!.data!.result.reason
+                      : `<div>${aiResults[`${selected.cv.cv_id}:${selected.jdId}`]!.data!.result.reason}</div>`
+                  }}
+                ></div>
               </div>
             )}
           </div>

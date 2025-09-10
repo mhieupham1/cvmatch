@@ -229,7 +229,30 @@ class OpenAIService:
             "reason": "Detailed explanation of why this score was given, including strengths, weaknesses, and specific reasons for the match percentage"
         }}
         
-        Provide detailed, constructive analysis in Vietnamese. Return only valid JSON without any markdown formatting or extra text.
+        Format the "reason" field as HTML with the following structure:
+        ```
+        <div>
+          <p>[Phần giải thích tổng quan về mức độ phù hợp]</p>
+          
+          <h4>Kỹ năng khớp:</h4>
+          <ul style="margin-left: 20px;">
+            <li>[Kỹ năng 1]</li>
+            <li>[Kỹ năng 2]</li>
+            ...
+          </ul>
+          
+          <h4>Kỹ năng thiếu:</h4>
+          <ul style="margin-left: 20px;">
+            <li>[Kỹ năng 1]</li>
+            <li>[Kỹ năng 2]</li>
+            ...
+          </ul>
+          
+          <p>[Phần kết luận và đề xuất]</p>
+        </div>
+        ```
+        
+        Provide detailed, constructive analysis in Vietnamese. Return only valid JSON with HTML content in the reason field.
         """
         
         try:
@@ -243,6 +266,15 @@ class OpenAIService:
             )
             
             result = response.choices[0].message.content.strip()
-            return json.loads(result)
+            parsed_result = json.loads(result)
+            
+            # Đảm bảo reason không bị escape HTML
+            if "reason" in parsed_result and isinstance(parsed_result["reason"], str):
+                # Xử lý trường hợp HTML bị escape
+                if parsed_result["reason"].startswith("&lt;") or parsed_result["reason"].startswith("<div"):
+                    # Không cần làm gì thêm, giữ nguyên HTML
+                    pass
+                    
+            return parsed_result
         except Exception as e:
             raise Exception(f"Error comparing CV and JD with OpenAI: {str(e)}")

@@ -243,7 +243,14 @@ const CVList: React.FC = () => {
                             {ai?.data && (
                               <div className="ai-result" style={{ marginTop: 8 }}>
                                 <div><strong>AI Match Score:</strong> {ai.data.result.match_score}%</div>
-                                <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{ai.data.result.reason}</div>
+                                <div 
+                                  style={{ marginTop: 4 }} 
+                                  dangerouslySetInnerHTML={{ 
+                                    __html: ai.data.result.reason.startsWith('<') 
+                                      ? ai.data.result.reason 
+                                      : `<div>${ai.data.result.reason}</div>` 
+                                  }}
+                                ></div>
                                 {cv.status !== 'awaiting_interview' && (
                                   <div style={{ marginTop: 8 }}>
                                     <button className="btn btn-success" onClick={() => handleApprove(cv.id)}>

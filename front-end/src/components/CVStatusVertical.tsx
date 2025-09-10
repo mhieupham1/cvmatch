@@ -226,8 +226,15 @@ const CVDetailModal: React.FC<CVDetailModalProps> = ({ cv, isOpen, onClose }) =>
                       )}
                       {ai?.data && (
                         <div className="ai-result">
-                          <div><strong>Điểm AI:</strong> {ai.data.result.match_score}%</div>
-                          <div className="ai-reason">{ai.data.result.reason}</div>
+                          <div><strong>Tỷ lệ Matching:</strong> {ai.data.result.match_score}%</div>
+                          <div 
+                            className="ai-reason" 
+                            dangerouslySetInnerHTML={{ 
+                              __html: ai.data.result.reason.startsWith('<') 
+                                ? ai.data.result.reason 
+                                : `<div>${ai.data.result.reason}</div>` 
+                            }}
+                          ></div>
                         </div>
                       )}
                     </div>
