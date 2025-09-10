@@ -12,6 +12,11 @@ class CVSchema(BaseModel):
     education: List[str] = []
     work_experience: List[str] = []
     certifications: List[str] = []
+    birth_year: Optional[int] = None
+    languages: List[str] = []  # Ngoại ngữ
+    project_scope: List[str] = []  # outsource, product, blockchain, AI, etc.
+    customer: List[str] = []  # JP, VN, USA, etc.
+    location: Optional[str] = None  # Location của ứng viên
 
 class JDSchema(BaseModel):
     job_title: str
@@ -50,6 +55,11 @@ class CVResponse(BaseModel):
     education: List[str] = []
     work_experience: List[str] = []
     certifications: List[str] = []
+    birth_year: Optional[int] = None
+    languages: List[str] = []  # Ngoại ngữ
+    project_scope: List[str] = []  # outsource, product, blockchain, AI, etc.
+    customer: List[str] = []  # JP, VN, USA, etc.
+    location: Optional[str] = None  # Location của ứng viên
     created_at: datetime
     status: Optional[str] = "new"
 

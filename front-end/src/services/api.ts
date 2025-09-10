@@ -19,6 +19,11 @@ export interface CVResponse {
   phone?: string;
   role?: string;
   experience_years?: number;
+  birth_year?: number;
+  languages: string[];
+  project_scope: string[];
+  customer: string[];
+  location?: string;
   skills: string[];
   education: string[];
   work_experience: string[];

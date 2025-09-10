@@ -19,8 +19,16 @@ class EmbeddingService:
                 text_parts.append(f"Name: {data['name']}")
             if data.get('role'):
                 text_parts.append(f"Role: {data['role']}")
+            if data.get('location'):
+                text_parts.append(f"Location: {data['location']}")
             if data.get('experience_years'):
                 text_parts.append(f"Experience: {data['experience_years']} years")
+            if data.get('languages'):
+                text_parts.append(f"Languages: {', '.join(data['languages'])}")
+            if data.get('project_scope'):
+                text_parts.append(f"Project Types: {', '.join(data['project_scope'])}")
+            if data.get('customer'):
+                text_parts.append(f"Customer Markets: {', '.join(data['customer'])}")
             if data.get('skills'):
                 text_parts.append(f"Skills: {', '.join(data['skills'])}")
             if data.get('education'):
@@ -68,6 +76,10 @@ class EmbeddingService:
             return embedding
         except Exception as e:
             raise Exception(f"Error generating embedding: {str(e)}")
+    
+    async def get_embedding(self, text: str) -> np.ndarray:
+        """Async version of generate_embedding"""
+        return self.generate_embedding(text)
     
     def serialize_embedding(self, embedding: np.ndarray) -> bytes:
         """Chuyển embedding thành bytes để lưu vào database"""

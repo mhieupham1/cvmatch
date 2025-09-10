@@ -74,7 +74,7 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
             buffer.write(content)
         
         text_content = file_processor.extract_text(file_path)
-        parsed_cv = await openai_service.parse_cv(text_content)
+        parsed_cv = await openai_service.parse_cv(text_content, file.filename)
         
         # Keep the file - don't remove it
         # os.remove(file_path)
@@ -86,8 +86,14 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
             name=parsed_cv.get('name'),
             email=parsed_cv.get('email'),
             phone=parsed_cv.get('phone'),
+            role=parsed_cv.get('role'),
             role_category=parsed_cv.get('role_category'),
             experience_years=parsed_cv.get('experience_years'),
+            birth_year=parsed_cv.get('birth_year'),
+            languages=parsed_cv.get('languages', []),
+            project_scope=parsed_cv.get('project_scope', []),
+            customer=parsed_cv.get('customer', []),
+            location=parsed_cv.get('location'),
             skills=parsed_cv.get('skills', []),
             education=parsed_cv.get('education', []),
             work_experience=parsed_cv.get('work_experience', []),
@@ -110,7 +116,12 @@ async def upload_cv(file: UploadFile = File(...), db: Session = Depends(get_db))
                 "role": parsed_cv.get('role', ''),
                 "role_category": parsed_cv.get('role_category', ''),
                 "skills_count": len(parsed_cv.get('skills', [])),
-                "experience_years": parsed_cv.get('experience_years', 0)
+                "experience_years": parsed_cv.get('experience_years', 0),
+                "birth_year": parsed_cv.get('birth_year'),
+                "languages": parsed_cv.get('languages', []),
+                "project_scope": parsed_cv.get('project_scope', []),
+                "customer": parsed_cv.get('customer', []),
+                "location": parsed_cv.get('location', '')
             }
             vector_service.store_cv_embedding(cv_record.id, embedding, metadata)
             
@@ -177,7 +188,7 @@ async def bulk_upload_cvs(files: List[UploadFile] = File(...), db: Session = Dep
             
             # Process file
             text_content = file_processor.extract_text(file_path)
-            parsed_cv = await openai_service.parse_cv(text_content)
+            parsed_cv = await openai_service.parse_cv(text_content, file.filename)
             
             # Save to database
             cv_record = CV(
@@ -186,8 +197,14 @@ async def bulk_upload_cvs(files: List[UploadFile] = File(...), db: Session = Dep
                 name=parsed_cv.get('name'),
                 email=parsed_cv.get('email'),
                 phone=parsed_cv.get('phone'),
+                role=parsed_cv.get('role'),
                 role_category=parsed_cv.get('role_category'),
                 experience_years=parsed_cv.get('experience_years'),
+                birth_year=parsed_cv.get('birth_year'),
+                languages=parsed_cv.get('languages', []),
+                project_scope=parsed_cv.get('project_scope', []),
+                customer=parsed_cv.get('customer', []),
+                location=parsed_cv.get('location'),
                 skills=parsed_cv.get('skills', []),
                 education=parsed_cv.get('education', []),
                 work_experience=parsed_cv.get('work_experience', []),
@@ -348,7 +365,13 @@ async def list_cvs(status: str | None = None, db: Session = Depends(get_db)):
             name=cv.name,
             email=cv.email,
             phone=cv.phone,
+            role=cv.role,
             experience_years=cv.experience_years,
+            birth_year=getattr(cv, 'birth_year', None),
+            languages=getattr(cv, 'languages', []) or [],
+            project_scope=getattr(cv, 'project_scope', []) or [],
+            customer=getattr(cv, 'customer', []) or [],
+            location=getattr(cv, 'location', None),
             skills=cv.skills or [],
             education=cv.education or [],
             work_experience=cv.work_experience or [],
@@ -412,7 +435,13 @@ async def approve_cv(cv_id: int, db: Session = Depends(get_db)):
             name=cv_record.name,
             email=cv_record.email,
             phone=cv_record.phone,
+            role=cv_record.role,
             experience_years=cv_record.experience_years,
+            birth_year=getattr(cv_record, 'birth_year', None),
+            languages=getattr(cv_record, 'languages', []) or [],
+            project_scope=getattr(cv_record, 'project_scope', []) or [],
+            customer=getattr(cv_record, 'customer', []) or [],
+            location=getattr(cv_record, 'location', None),
             skills=cv_record.skills or [],
             education=cv_record.education or [],
             work_experience=cv_record.work_experience or [],

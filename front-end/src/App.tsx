@@ -4,7 +4,9 @@ import CVUpload from './components/CVUpload';
 import JDUpload from './components/JDUpload';
 import CVList from './components/CVList';
 import CVStatusPage from './components/CVStatusPage';
-import JDList from './components/JDList';
+import CVListVertical from './components/CVListVertical';
+import CVStatusVertical from './components/CVStatusVertical';
+import JDListVertical from './components/JDListVertical';
 import './App.css';
 
 function App() {
@@ -29,9 +31,9 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/upload-cv" element={<CVUpload />} />
             <Route path="/upload-jd" element={<JDUpload />} />
-            <Route path="/cvs" element={<CVList />} />
-            <Route path="/cv-status" element={<CVStatusPage />} />
-            <Route path="/jds" element={<JDList />} />
+            <Route path="/cvs" element={<CVListVertical />} />
+            <Route path="/cv-status" element={<CVStatusVertical />} />
+            <Route path="/jds" element={<JDListVertical />} />
           </Routes>
         </main>
       </div>

@@ -21,12 +21,18 @@ class CV(Base):
     name = Column(String, nullable=True)
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
+    role = Column(String, nullable=True)  # Current role or target position
     role_category = Column(String, nullable=True)  # frontend, backend, fullstack, etc.
     experience_years = Column(Integer, nullable=True)
     skills = Column(JSON, nullable=True)  # List[str]
     education = Column(JSON, nullable=True)  # List[str]
     work_experience = Column(JSON, nullable=True)  # List[str]
     certifications = Column(JSON, nullable=True)  # List[str]
+    birth_year = Column(Integer, nullable=True)  # Năm sinh
+    languages = Column(JSON, nullable=True)  # List[str] - Ngoại ngữ
+    project_scope = Column(JSON, nullable=True)  # List[str] - outsource, product, blockchain, AI, etc.
+    customer = Column(JSON, nullable=True)  # List[str] - JP, VN, USA, etc.
+    location = Column(String, nullable=True)  # Location của ứng viên
     raw_data = Column(JSON, nullable=True)  # Store original parsed data
     # embedding moved to ChromaDB
     has_embedding = Column(Integer, default=0)  # Flag to track if embedding exists
